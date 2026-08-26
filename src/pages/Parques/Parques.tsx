@@ -62,20 +62,34 @@ interface Encargado {
 export default function Parques() {
   const navigate = useNavigate();
 
-  const [parques, setParques] =
-    useState<Parque[]>([]);
+  // ============================
+  // DATOS
+  // ============================
 
-  const [distritos, setDistritos] =
-    useState<Distrito[]>([]);
+  const [
+    parques,
+    setParques,
+  ] = useState<Parque[]>([]);
 
-  const [encargados, setEncargados] =
-    useState<Encargado[]>([]);
+  const [
+    distritos,
+    setDistritos,
+  ] = useState<Distrito[]>([]);
 
-  const [cargando, setCargando] =
-    useState(true);
+  const [
+    encargados,
+    setEncargados,
+  ] = useState<Encargado[]>([]);
 
-  const [error, setError] =
-    useState('');
+  const [
+    cargando,
+    setCargando,
+  ] = useState(true);
+
+  const [
+    error,
+    setError,
+  ] = useState('');
 
   // ============================
   // MODAL CREAR / EDITAR
@@ -86,8 +100,10 @@ export default function Parques() {
     setModalAbierto,
   ] = useState(false);
 
-  const [guardando, setGuardando] =
-    useState(false);
+  const [
+    guardando,
+    setGuardando,
+  ] = useState(false);
 
   const [
     errorFormulario,
@@ -132,27 +148,35 @@ export default function Parques() {
   // FORMULARIO
   // ============================
 
-  const [ubicacion, setUbicacion] =
-    useState('');
+  const [
+    ubicacion,
+    setUbicacion,
+  ] = useState('');
 
   const [
     numeroFinca,
     setNumeroFinca,
   ] = useState('');
 
-  const [area, setArea] =
-    useState('');
+  const [
+    area,
+    setArea,
+  ] = useState('');
 
   const [
     numeroPlano,
     setNumeroPlano,
   ] = useState('');
 
-  const [visado, setVisado] =
-    useState('');
+  const [
+    visado,
+    setVisado,
+  ] = useState('');
 
-  const [estado, setEstado] =
-    useState('');
+  const [
+    estado,
+    setEstado,
+  ] = useState('');
 
   const [
     idDistrito,
@@ -168,64 +192,83 @@ export default function Parques() {
   // CARGAR PARQUES
   // ============================
 
-  const cargarParques = async () => {
-    try {
-      setCargando(true);
-      setError('');
+  const cargarParques =
+    async () => {
+      try {
+        setCargando(true);
+        setError('');
 
-      const response =
-        await api.get('/parques');
+        const response =
+          await api.get(
+            '/parques',
+          );
 
-      setParques(response.data);
-    } catch (error) {
-      console.error(
-        'Error cargando parques:',
-        error,
-      );
+        setParques(
+          response.data,
+        );
+      } catch (error) {
+        console.error(
+          'Error cargando parques:',
+          error,
+        );
 
-      setError(
-        'No se pudieron cargar los parques.',
-      );
-    } finally {
-      setCargando(false);
-    }
-  };
+        setError(
+          'No se pudieron cargar los parques.',
+        );
+      } finally {
+        setCargando(false);
+      }
+    };
 
   // ============================
   // CARGAR DISTRITOS
   // ============================
 
-  const cargarDistritos = async () => {
-    try {
-      const response =
-        await api.get('/distritos');
+  const cargarDistritos =
+    async () => {
+      try {
+        const response =
+          await api.get(
+            '/distritos',
+          );
 
-      setDistritos(response.data);
-    } catch (error) {
-      console.error(
-        'Error cargando distritos:',
-        error,
-      );
-    }
-  };
+        setDistritos(
+          response.data,
+        );
+      } catch (error) {
+        console.error(
+          'Error cargando distritos:',
+          error,
+        );
+      }
+    };
 
   // ============================
   // CARGAR ENCARGADOS
   // ============================
 
-  const cargarEncargados = async () => {
-    try {
-      const response =
-        await api.get('/encargados');
+  const cargarEncargados =
+    async () => {
+      try {
+        const response =
+          await api.get(
+            '/encargados',
+          );
 
-      setEncargados(response.data);
-    } catch (error) {
-      console.error(
-        'Error cargando encargados:',
-        error,
-      );
-    }
-  };
+        setEncargados(
+          response.data,
+        );
+      } catch (error) {
+        console.error(
+          'Error cargando encargados:',
+          error,
+        );
+      }
+    };
+
+  // ============================
+  // CARGA INICIAL
+  // ============================
 
   useEffect(() => {
     cargarParques();
@@ -237,64 +280,83 @@ export default function Parques() {
   // LIMPIAR FORMULARIO
   // ============================
 
-  const limpiarFormulario = () => {
-    setUbicacion('');
-    setNumeroFinca('');
-    setArea('');
-    setNumeroPlano('');
-    setVisado('');
-    setEstado('');
-    setIdDistrito('');
-    setIdEncargado('');
-    setErrorFormulario('');
-  };
+  const limpiarFormulario =
+    () => {
+      setUbicacion('');
+      setNumeroFinca('');
+      setArea('');
+      setNumeroPlano('');
+      setVisado('');
+      setEstado('');
+      setIdDistrito('');
+      setIdEncargado('');
+      setErrorFormulario('');
+    };
 
   // ============================
-  // NUEVO
+  // NUEVO PARQUE
   // ============================
 
-  const abrirModalCrear = () => {
-    limpiarFormulario();
+  const abrirModalCrear =
+    () => {
+      limpiarFormulario();
 
-    setModoEdicion(false);
-    setIdParqueEditando(null);
-    setModalAbierto(true);
-  };
+      setModoEdicion(
+        false,
+      );
+
+      setIdParqueEditando(
+        null,
+      );
+
+      setModalAbierto(
+        true,
+      );
+    };
 
   // ============================
-  // EDITAR
+  // EDITAR PARQUE
   // ============================
 
   const abrirModalEditar = (
     parque: Parque,
   ) => {
     setUbicacion(
-      parque.ubicacion ?? '',
+      parque.ubicacion ??
+        '',
     );
 
     setNumeroFinca(
-      parque.numero_finca ?? '',
+      parque.numero_finca ??
+        '',
     );
 
     setArea(
-      String(parque.area ?? ''),
+      String(
+        parque.area ?? '',
+      ),
     );
 
     setNumeroPlano(
-      parque.numero_plano ?? '',
+      parque.numero_plano ??
+        '',
     );
 
     setVisado(
-      parque.visado ?? '',
+      parque.visado ??
+        '',
     );
 
     setEstado(
-      parque.estado ?? '',
+      parque.estado ??
+        '',
     );
 
     setIdDistrito(
       parque.id_distrito
-        ? String(parque.id_distrito)
+        ? String(
+            parque.id_distrito,
+          )
         : parque.distrito
           ? String(
               parque.distrito
@@ -305,7 +367,9 @@ export default function Parques() {
 
     setIdEncargado(
       parque.id_encargado
-        ? String(parque.id_encargado)
+        ? String(
+            parque.id_encargado,
+          )
         : parque.encargado
           ? String(
               parque.encargado
@@ -314,161 +378,229 @@ export default function Parques() {
           : '',
     );
 
-    setModoEdicion(true);
+    setModoEdicion(
+      true,
+    );
 
     setIdParqueEditando(
       parque.id_parque,
     );
 
-    setErrorFormulario('');
-    setModalAbierto(true);
+    setErrorFormulario(
+      '',
+    );
+
+    setModalAbierto(
+      true,
+    );
   };
 
   // ============================
-  // CERRAR MODAL CREAR / EDITAR
+  // CERRAR MODAL
   // ============================
 
-  const cerrarModal = () => {
-    if (guardando) {
-      return;
-    }
-
-    setModalAbierto(false);
-
-    limpiarFormulario();
-
-    setModoEdicion(false);
-    setIdParqueEditando(null);
-  };
-
-  // ============================
-  // GUARDAR
-  // ============================
-
-  const guardarParque = async (
-    event: FormEvent<HTMLFormElement>,
-  ) => {
-    event.preventDefault();
-
-    setGuardando(true);
-    setErrorFormulario('');
-
-    try {
-      const token =
-        localStorage.getItem('token');
-
-      const datosParque = {
-        ubicacion,
-
-        numero_finca:
-          numeroFinca,
-
-        area:
-          Number(area),
-
-        numero_plano:
-          numeroPlano,
-
-        visado,
-
-        estado,
-
-        descripcion_inversion:
-          'Sin inversión registrada',
-
-        inversion:
-          0,
-
-        fecha_inversion:
-          '2026-01-01',
-
-        id_distrito:
-          Number(idDistrito),
-
-        id_encargado:
-          Number(idEncargado),
-      };
-
-      if (
-        modoEdicion &&
-        idParqueEditando !== null
-      ) {
-        await api.patch(
-          `/parques/${idParqueEditando}`,
-          datosParque,
-          {
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          },
-        );
-      } else {
-        await api.post(
-          '/parques',
-          datosParque,
-          {
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          },
-        );
-      }
-
-      setModalAbierto(false);
-
-      limpiarFormulario();
-
-      setModoEdicion(false);
-      setIdParqueEditando(null);
-
-      await cargarParques();
-    } catch (error: any) {
-      console.error(
-        'Error guardando parque:',
-        error,
-      );
-
-      if (
-        error.response?.status ===
-        401
-      ) {
-        localStorage.removeItem(
-          'token',
-        );
-
-        localStorage.removeItem(
-          'usuario',
-        );
-
-        navigate('/login');
-
+  const cerrarModal =
+    () => {
+      if (guardando) {
         return;
       }
 
-      const message =
-        error.response?.data?.message;
+      setModalAbierto(
+        false,
+      );
 
-      if (Array.isArray(message)) {
-        setErrorFormulario(
-          message.join(', '),
+      limpiarFormulario();
+
+      setModoEdicion(
+        false,
+      );
+
+      setIdParqueEditando(
+        null,
+      );
+    };
+
+  // ============================
+  // GUARDAR PARQUE
+  // ============================
+
+  const guardarParque =
+    async (
+      event:
+        FormEvent<HTMLFormElement>,
+    ) => {
+      event.preventDefault();
+
+      setGuardando(
+        true,
+      );
+
+      setErrorFormulario(
+        '',
+      );
+
+      try {
+        const token =
+          localStorage.getItem(
+            'token',
+          );
+
+        const datosParque = {
+          ubicacion:
+
+            ubicacion.trim(),
+
+          numero_finca:
+            numeroFinca.trim(),
+
+          area:
+            Number(area),
+
+          numero_plano:
+            numeroPlano.trim(),
+
+          visado:
+            visado.trim(),
+
+          estado,
+
+          descripcion_inversion:
+            'Sin inversión registrada',
+
+          inversion:
+            0,
+
+          fecha_inversion:
+            '2026-01-01',
+
+          id_distrito:
+            Number(
+              idDistrito,
+            ),
+
+          id_encargado:
+            Number(
+              idEncargado,
+            ),
+        };
+
+        // ============================
+        // EDITAR
+        // ============================
+
+        if (
+          modoEdicion &&
+          idParqueEditando !==
+            null
+        ) {
+          await api.patch(
+            `/parques/${idParqueEditando}`,
+            datosParque,
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            },
+          );
+        }
+
+        // ============================
+        // CREAR
+        // ============================
+
+        else {
+          await api.post(
+            '/parques',
+            datosParque,
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            },
+          );
+        }
+
+        setModalAbierto(
+          false,
         );
-      } else if (message) {
-        setErrorFormulario(
-          message,
+
+        limpiarFormulario();
+
+        setModoEdicion(
+          false,
         );
-      } else {
-        setErrorFormulario(
-          modoEdicion
-            ? 'No se pudo actualizar el parque.'
-            : 'No se pudo registrar el parque.',
+
+        setIdParqueEditando(
+          null,
+        );
+
+        await cargarParques();
+      } catch (error: any) {
+        console.error(
+          'Error guardando parque:',
+          error,
+        );
+
+        // ============================
+        // TOKEN EXPIRADO
+        // ============================
+
+        if (
+          error.response
+            ?.status ===
+          401
+        ) {
+          localStorage.removeItem(
+            'token',
+          );
+
+          localStorage.removeItem(
+            'usuario',
+          );
+
+          navigate(
+            '/login',
+          );
+
+          return;
+        }
+
+        const message =
+          error.response
+            ?.data
+            ?.message;
+
+        if (
+          Array.isArray(
+            message,
+          )
+        ) {
+          setErrorFormulario(
+            message.join(
+              ', ',
+            ),
+          );
+        } else if (
+          message
+        ) {
+          setErrorFormulario(
+            message,
+          );
+        } else {
+          setErrorFormulario(
+            modoEdicion
+              ? 'No se pudo actualizar el parque.'
+              : 'No se pudo registrar el parque.',
+          );
+        }
+      } finally {
+        setGuardando(
+          false,
         );
       }
-    } finally {
-      setGuardando(false);
-    }
-  };
+    };
 
   // ============================
   // ABRIR MODAL ELIMINAR
@@ -477,24 +609,41 @@ export default function Parques() {
   const abrirModalEliminar = (
     parque: Parque,
   ) => {
-    setParqueEliminar(parque);
-    setErrorEliminar('');
-    setModalEliminarAbierto(true);
+    setParqueEliminar(
+      parque,
+    );
+
+    setErrorEliminar(
+      '',
+    );
+
+    setModalEliminarAbierto(
+      true,
+    );
   };
 
   // ============================
   // CERRAR MODAL ELIMINAR
   // ============================
 
-  const cerrarModalEliminar = () => {
-    if (eliminando) {
-      return;
-    }
+  const cerrarModalEliminar =
+    () => {
+      if (eliminando) {
+        return;
+      }
 
-    setModalEliminarAbierto(false);
-    setParqueEliminar(null);
-    setErrorEliminar('');
-  };
+      setModalEliminarAbierto(
+        false,
+      );
+
+      setParqueEliminar(
+        null,
+      );
+
+      setErrorEliminar(
+        '',
+      );
+    };
 
   // ============================
   // CONFIRMAR ELIMINACIÓN
@@ -507,8 +656,13 @@ export default function Parques() {
       }
 
       try {
-        setEliminando(true);
-        setErrorEliminar('');
+        setEliminando(
+          true,
+        );
+
+        setErrorEliminar(
+          '',
+        );
 
         const token =
           localStorage.getItem(
@@ -529,7 +683,9 @@ export default function Parques() {
           false,
         );
 
-        setParqueEliminar(null);
+        setParqueEliminar(
+          null,
+        );
 
         await cargarParques();
       } catch (error: any) {
@@ -538,8 +694,76 @@ export default function Parques() {
           error,
         );
 
+        // ============================
+        // TOKEN EXPIRADO
+        // ============================
+
+        if (
+          error.response
+            ?.status ===
+          401
+        ) {
+          localStorage.removeItem(
+            'token',
+          );
+
+          localStorage.removeItem(
+            'usuario',
+          );
+
+          navigate(
+            '/login',
+          );
+
+          return;
+        }
+
+        // ============================
+        // CONFLICTO POR RELACIONES
+        // ============================
+
+        if (
+          error.response
+            ?.status ===
+          409
+        ) {
+          const message =
+            error.response
+              ?.data
+              ?.message;
+
+          if (
+            Array.isArray(
+              message,
+            )
+          ) {
+            setErrorEliminar(
+              message.join(
+                ', ',
+              ),
+            );
+          } else if (
+            message
+          ) {
+            setErrorEliminar(
+              message,
+            );
+          } else {
+            setErrorEliminar(
+              'No se puede eliminar este parque porque está relacionado con otros registros.',
+            );
+          }
+
+          return;
+        }
+
+        // ============================
+        // OTROS ERRORES DEL BACKEND
+        // ============================
+
         const message =
-          error.response?.data
+          error.response
+            ?.data
             ?.message;
 
         if (
@@ -548,9 +772,13 @@ export default function Parques() {
           )
         ) {
           setErrorEliminar(
-            message.join(', '),
+            message.join(
+              ', ',
+            ),
           );
-        } else if (message) {
+        } else if (
+          message
+        ) {
           setErrorEliminar(
             message,
           );
@@ -560,12 +788,14 @@ export default function Parques() {
           );
         }
       } finally {
-        setEliminando(false);
+        setEliminando(
+          false,
+        );
       }
     };
 
   // ============================
-  // NOMBRE ENCARGADO
+  // NOMBRE DEL ENCARGADO
   // ============================
 
   const obtenerNombreEncargado = (
@@ -585,20 +815,30 @@ export default function Parques() {
   };
 
   // ============================
-  // LOGOUT
+  // CERRAR SESIÓN
   // ============================
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('usuario');
+  const handleLogout =
+    () => {
+      localStorage.removeItem(
+        'token',
+      );
 
-    navigate('/login');
-  };
+      localStorage.removeItem(
+        'usuario',
+      );
+
+      navigate(
+        '/login',
+      );
+    };
 
   return (
     <div className="min-h-screen bg-slate-100">
 
+      {/* ============================ */}
       {/* HEADER */}
+      {/* ============================ */}
 
       <header className="border-b border-slate-200 bg-white px-8 py-5">
 
@@ -632,7 +872,9 @@ export default function Parques() {
 
             <button
               type="button"
-              onClick={handleLogout}
+              onClick={
+                handleLogout
+              }
               className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
             >
               Cerrar sesión
@@ -644,7 +886,9 @@ export default function Parques() {
 
       </header>
 
+      {/* ============================ */}
       {/* CONTENIDO */}
+      {/* ============================ */}
 
       <main className="mx-auto max-w-7xl px-8 py-10">
 
@@ -674,11 +918,19 @@ export default function Parques() {
 
         </div>
 
+        {/* ============================ */}
+        {/* CARGANDO */}
+        {/* ============================ */}
+
         {cargando && (
           <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">
             Cargando parques...
           </div>
         )}
+
+        {/* ============================ */}
+        {/* ERROR CARGA */}
+        {/* ============================ */}
 
         {!cargando &&
           error && (
@@ -691,7 +943,9 @@ export default function Parques() {
 
             <button
               type="button"
-              onClick={cargarParques}
+              onClick={
+                cargarParques
+              }
               className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-white"
             >
               Intentar nuevamente
@@ -700,6 +954,10 @@ export default function Parques() {
           </div>
 
         )}
+
+        {/* ============================ */}
+        {/* TABLA */}
+        {/* ============================ */}
 
         {!cargando &&
           !error && (
@@ -714,39 +972,39 @@ export default function Parques() {
 
                   <tr>
 
-                    <th className="px-4 py-3 text-left">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
                       Ubicación
                     </th>
 
-                    <th className="px-4 py-3 text-left">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
                       Finca
                     </th>
 
-                    <th className="px-4 py-3 text-left">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
                       Área
                     </th>
 
-                    <th className="px-4 py-3 text-left">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
                       Plano
                     </th>
 
-                    <th className="px-4 py-3 text-left">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
                       Visado
                     </th>
 
-                    <th className="px-4 py-3 text-left">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
                       Distrito
                     </th>
 
-                    <th className="px-4 py-3 text-left">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
                       Encargado
                     </th>
 
-                    <th className="px-4 py-3 text-left">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
                       Estado
                     </th>
 
-                    <th className="px-4 py-3 text-left">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
                       Acciones
                     </th>
 
@@ -782,57 +1040,74 @@ export default function Parques() {
                           className="border-t border-slate-100 hover:bg-slate-50"
                         >
 
-                          <td className="px-4 py-4 font-medium">
+                          {/* UBICACIÓN */}
+
+                          <td className="px-4 py-4 font-medium text-slate-900">
                             {
                               parque.ubicacion
                             }
                           </td>
 
-                          <td className="px-4 py-4">
+                          {/* FINCA */}
+
+                          <td className="px-4 py-4 text-slate-700">
                             {
                               parque.numero_finca
                             }
                           </td>
 
-                          <td className="px-4 py-4">
-                            {parque.area} m²
+                          {/* ÁREA */}
+
+                          <td className="px-4 py-4 text-slate-700">
+                            {parque.area}{' '}
+                            m²
                           </td>
 
-                          <td className="px-4 py-4">
+                          {/* PLANO */}
+
+                          <td className="px-4 py-4 text-slate-700">
                             {
                               parque.numero_plano
                             }
                           </td>
 
-                          <td className="px-4 py-4">
+                          {/* VISADO */}
+
+                          <td className="px-4 py-4 text-slate-700">
                             {
                               parque.visado
                             }
                           </td>
 
-                          <td className="px-4 py-4">
+                          {/* DISTRITO */}
 
-                            {
-                              parque.distrito
-                                ?.nombre_distrito ??
-                              parque.id_distrito
-                            }
+                          <td className="px-4 py-4 text-slate-700">
+
+                            {parque.distrito
+                              ?.nombre_distrito ??
+                              'Sin distrito'}
 
                           </td>
 
-                          <td className="px-4 py-4">
+                          {/* ENCARGADO */}
+
+                          <td className="px-4 py-4 text-slate-700">
 
                             {parque.encargado
                               ? parque.encargado
                                   .tipo_encargado ===
                                 'ASOCIACION'
                                 ? parque.encargado
-                                    .nombre_asociacion
+                                    .nombre_asociacion ||
+                                  parque.encargado
+                                    .nombre_encargado
                                 : parque.encargado
                                     .nombre_encargado
-                              : parque.id_encargado}
+                              : 'Sin encargado'}
 
                           </td>
+
+                          {/* ESTADO */}
 
                           <td className="px-4 py-4">
 
@@ -844,10 +1119,14 @@ export default function Parques() {
                                   : 'rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700'
                               }
                             >
-                              {parque.estado}
+                              {
+                                parque.estado
+                              }
                             </span>
 
                           </td>
+
+                          {/* ACCIONES */}
 
                           <td className="px-4 py-4">
 
@@ -900,13 +1179,17 @@ export default function Parques() {
 
       </main>
 
+      {/* ============================ */}
       {/* MODAL CREAR / EDITAR */}
+      {/* ============================ */}
 
       {modalAbierto && (
 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
 
           <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl">
+
+            {/* HEADER MODAL */}
 
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
 
@@ -942,8 +1225,12 @@ export default function Parques() {
 
             </div>
 
+            {/* FORMULARIO */}
+
             <form
-              onSubmit={guardarParque}
+              onSubmit={
+                guardarParque
+              }
               className="p-6"
             >
 
@@ -957,16 +1244,22 @@ export default function Parques() {
 
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
 
+                {/* UBICACIÓN */}
+
                 <div>
 
-                  <label className="mb-2 block text-sm font-medium">
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
                     Ubicación
                   </label>
 
                   <input
                     type="text"
-                    value={ubicacion}
-                    onChange={(event) =>
+                    value={
+                      ubicacion
+                    }
+                    onChange={(
+                      event,
+                    ) =>
                       setUbicacion(
                         event.target.value,
                       )
@@ -978,16 +1271,22 @@ export default function Parques() {
 
                 </div>
 
+                {/* FINCA */}
+
                 <div>
 
-                  <label className="mb-2 block text-sm font-medium">
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
                     Número de finca
                   </label>
 
                   <input
                     type="text"
-                    value={numeroFinca}
-                    onChange={(event) =>
+                    value={
+                      numeroFinca
+                    }
+                    onChange={(
+                      event,
+                    ) =>
                       setNumeroFinca(
                         event.target.value,
                       )
@@ -999,9 +1298,11 @@ export default function Parques() {
 
                 </div>
 
+                {/* ÁREA */}
+
                 <div>
 
-                  <label className="mb-2 block text-sm font-medium">
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
                     Área (m²)
                   </label>
 
@@ -1010,7 +1311,9 @@ export default function Parques() {
                     step="0.01"
                     min="0"
                     value={area}
-                    onChange={(event) =>
+                    onChange={(
+                      event,
+                    ) =>
                       setArea(
                         event.target.value,
                       )
@@ -1022,16 +1325,22 @@ export default function Parques() {
 
                 </div>
 
+                {/* PLANO */}
+
                 <div>
 
-                  <label className="mb-2 block text-sm font-medium">
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
                     Número de plano
                   </label>
 
                   <input
                     type="text"
-                    value={numeroPlano}
-                    onChange={(event) =>
+                    value={
+                      numeroPlano
+                    }
+                    onChange={(
+                      event,
+                    ) =>
                       setNumeroPlano(
                         event.target.value,
                       )
@@ -1043,16 +1352,22 @@ export default function Parques() {
 
                 </div>
 
+                {/* VISADO */}
+
                 <div>
 
-                  <label className="mb-2 block text-sm font-medium">
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
                     Visado
                   </label>
 
                   <input
                     type="text"
-                    value={visado}
-                    onChange={(event) =>
+                    value={
+                      visado
+                    }
+                    onChange={(
+                      event,
+                    ) =>
                       setVisado(
                         event.target.value,
                       )
@@ -1064,15 +1379,21 @@ export default function Parques() {
 
                 </div>
 
+                {/* ESTADO */}
+
                 <div>
 
-                  <label className="mb-2 block text-sm font-medium">
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
                     Estado
                   </label>
 
                   <select
-                    value={estado}
-                    onChange={(event) =>
+                    value={
+                      estado
+                    }
+                    onChange={(
+                      event,
+                    ) =>
                       setEstado(
                         event.target.value,
                       )
@@ -1097,15 +1418,21 @@ export default function Parques() {
 
                 </div>
 
+                {/* DISTRITO */}
+
                 <div>
 
-                  <label className="mb-2 block text-sm font-medium">
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
                     Distrito
                   </label>
 
                   <select
-                    value={idDistrito}
-                    onChange={(event) =>
+                    value={
+                      idDistrito
+                    }
+                    onChange={(
+                      event,
+                    ) =>
                       setIdDistrito(
                         event.target.value,
                       )
@@ -1119,7 +1446,9 @@ export default function Parques() {
                     </option>
 
                     {distritos.map(
-                      (distrito) => (
+                      (
+                        distrito,
+                      ) => (
 
                         <option
                           key={
@@ -1141,15 +1470,21 @@ export default function Parques() {
 
                 </div>
 
+                {/* ENCARGADO */}
+
                 <div>
 
-                  <label className="mb-2 block text-sm font-medium">
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
                     Encargado
                   </label>
 
                   <select
-                    value={idEncargado}
-                    onChange={(event) =>
+                    value={
+                      idEncargado
+                    }
+                    onChange={(
+                      event,
+                    ) =>
                       setIdEncargado(
                         event.target.value,
                       )
@@ -1163,7 +1498,9 @@ export default function Parques() {
                     </option>
 
                     {encargados.map(
-                      (encargado) => (
+                      (
+                        encargado,
+                      ) => (
 
                         <option
                           key={
@@ -1196,12 +1533,18 @@ export default function Parques() {
 
               </div>
 
+              {/* BOTONES */}
+
               <div className="mt-7 flex justify-end gap-3 border-t border-slate-100 pt-5">
 
                 <button
                   type="button"
-                  onClick={cerrarModal}
-                  disabled={guardando}
+                  onClick={
+                    cerrarModal
+                  }
+                  disabled={
+                    guardando
+                  }
                   className="rounded-lg bg-slate-200 px-5 py-2 font-semibold text-slate-700 hover:bg-slate-300 disabled:opacity-60"
                 >
                   Cancelar
@@ -1209,7 +1552,9 @@ export default function Parques() {
 
                 <button
                   type="submit"
-                  disabled={guardando}
+                  disabled={
+                    guardando
+                  }
                   className="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                 >
 
@@ -1231,7 +1576,9 @@ export default function Parques() {
 
       )}
 
+      {/* ============================ */}
       {/* MODAL ELIMINAR */}
+      {/* ============================ */}
 
       {modalEliminarAbierto &&
         parqueEliminar && (
@@ -1239,6 +1586,8 @@ export default function Parques() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
 
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+
+            {/* HEADER */}
 
             <div className="border-b border-slate-200 px-6 py-5">
 
@@ -1254,6 +1603,8 @@ export default function Parques() {
 
             <div className="p-6">
 
+              {/* INFORMACIÓN */}
+
               <div className="rounded-xl bg-red-50 p-4">
 
                 <p className="text-sm text-red-700">
@@ -1261,22 +1612,41 @@ export default function Parques() {
                 </p>
 
                 <p className="mt-3 font-semibold text-slate-900">
-                  {parqueEliminar.ubicacion}
+                  {
+                    parqueEliminar.ubicacion
+                  }
                 </p>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  Finca: {parqueEliminar.numero_finca}
+                  Finca:{' '}
+                  {
+                    parqueEliminar.numero_finca
+                  }
                 </p>
 
               </div>
 
+              {/* ============================ */}
+              {/* ERROR DE ELIMINACIÓN */}
+              {/* ============================ */}
+
               {errorEliminar && (
 
-                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                  {errorEliminar}
+                <div className="mt-4 rounded-lg border border-red-300 bg-red-50 p-4">
+
+                  <p className="text-sm font-semibold text-red-800">
+                    No se puede eliminar el parque
+                  </p>
+
+                  <p className="mt-1 text-sm text-red-700">
+                    {errorEliminar}
+                  </p>
+
                 </div>
 
               )}
+
+              {/* BOTONES */}
 
               <div className="mt-6 flex justify-end gap-3">
 
@@ -1285,7 +1655,9 @@ export default function Parques() {
                   onClick={
                     cerrarModalEliminar
                   }
-                  disabled={eliminando}
+                  disabled={
+                    eliminando
+                  }
                   className="rounded-lg bg-slate-200 px-5 py-2 font-semibold text-slate-700 hover:bg-slate-300 disabled:opacity-60"
                 >
                   Cancelar
@@ -1296,7 +1668,9 @@ export default function Parques() {
                   onClick={
                     confirmarEliminarParque
                   }
-                  disabled={eliminando}
+                  disabled={
+                    eliminando
+                  }
                   className="rounded-lg bg-red-600 px-5 py-2 font-semibold text-white hover:bg-red-700 disabled:opacity-60"
                 >
 
