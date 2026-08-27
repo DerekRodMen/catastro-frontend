@@ -17,6 +17,7 @@ interface Parque {
 interface Declaracion {
   id_declaracion: number;
   fecha_declaracion: string;
+  fecha_vencimiento: string;
   estado_declaracion: string;
 
   parque?: Parque;
@@ -50,6 +51,59 @@ const mostrarFecha = (
   }
 
   return `${partes[2]}/${partes[1]}/${partes[0]}`;
+};
+
+
+const calcularFechaVencimiento = (
+  fechaDeclaracion: string,
+) => {
+  if (!fechaDeclaracion) {
+    return '';
+  }
+
+  const partes =
+    fechaDeclaracion.split('-');
+
+  if (partes.length !== 3) {
+    return '';
+  }
+
+  const anio =
+    Number(partes[0]);
+
+  const mes =
+    Number(partes[1]);
+
+  const dia =
+    Number(partes[2]);
+
+  const nuevoAnio =
+    anio + 5;
+
+  const ultimoDiaMes =
+    new Date(
+      nuevoAnio,
+      mes,
+      0,
+    ).getDate();
+
+  const diaAjustado =
+    Math.min(
+      dia,
+      ultimoDiaMes,
+    );
+
+  return `${nuevoAnio}-${String(
+    mes,
+  ).padStart(
+    2,
+    '0',
+  )}-${String(
+    diaAjustado,
+  ).padStart(
+    2,
+    '0',
+  )}`;
 };
 
 export default function Declaraciones() {
@@ -105,6 +159,20 @@ export default function Declaraciones() {
   ] = useState<number | null>(null);
 
   // ============================
+  // MODAL VER INFORMACIÓN
+  // ============================
+
+  const [
+    modalInformacionAbierto,
+    setModalInformacionAbierto,
+  ] = useState(false);
+
+  const [
+    declaracionVer,
+    setDeclaracionVer,
+  ] = useState<Declaracion | null>(null);
+
+  // ============================
   // MODAL ELIMINAR
   // ============================
 
@@ -145,9 +213,28 @@ export default function Declaraciones() {
   ] = useState('');
 
   const [
+    fechaVencimiento,
+    setFechaVencimiento,
+  ] = useState('');
+
+  const [
     estadoDeclaracion,
     setEstadoDeclaracion,
   ] = useState('Vigente');
+
+  // ============================
+  // CALCULAR VENCIMIENTO AUTOMÁTICO
+  // ============================
+
+  useEffect(() => {
+    setFechaVencimiento(
+      calcularFechaVencimiento(
+        fechaDeclaracion,
+      ),
+    );
+  }, [
+    fechaDeclaracion,
+  ]);
 
   // ============================
   // CARGAR DECLARACIONES
@@ -217,6 +304,7 @@ export default function Declaraciones() {
     () => {
       setIdParque('');
       setFechaDeclaracion('');
+      setFechaVencimiento('');
       setEstadoDeclaracion(
         'Vigente',
       );
@@ -259,6 +347,12 @@ export default function Declaraciones() {
     setFechaDeclaracion(
       obtenerFechaInput(
         declaracion.fecha_declaracion,
+      ),
+    );
+
+    setFechaVencimiento(
+      obtenerFechaInput(
+        declaracion.fecha_vencimiento,
       ),
     );
 
@@ -442,6 +536,22 @@ export default function Declaraciones() {
         setGuardando(false);
       }
     };
+
+  // ============================
+  // VER INFORMACIÓN
+  // ============================
+
+  const abrirModalInformacion = (
+    declaracion: Declaracion,
+  ) => {
+    setDeclaracionVer(declaracion);
+    setModalInformacionAbierto(true);
+  };
+
+  const cerrarModalInformacion = () => {
+    setModalInformacionAbierto(false);
+    setDeclaracionVer(null);
+  };
 
   // ============================
   // ABRIR ELIMINAR
@@ -722,6 +832,10 @@ export default function Declaraciones() {
                     </th>
 
                     <th className="px-4 py-3 text-left">
+                      Fecha de vencimiento
+                    </th>
+
+                    <th className="px-4 py-3 text-left">
                       Estado
                     </th>
 
@@ -741,7 +855,7 @@ export default function Declaraciones() {
                     <tr>
 
                       <td
-                        colSpan={4}
+                        colSpan={5}
                         className="px-4 py-12 text-center text-slate-500"
                       >
                         No hay declaraciones registradas.
@@ -793,6 +907,12 @@ export default function Declaraciones() {
                           </td>
 
                           <td className="px-4 py-4">
+                            {mostrarFecha(
+                              declaracion.fecha_vencimiento,
+                            )}
+                          </td>
+
+                          <td className="px-4 py-4">
 
                             <span
                               className={obtenerClaseEstado(
@@ -820,6 +940,18 @@ export default function Declaraciones() {
                                 className="rounded-md bg-sky-100 px-3 py-1 text-sm font-medium text-sky-700 hover:bg-sky-200"
                               >
                                 Editar
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  abrirModalInformacion(
+                                    declaracion,
+                                  )
+                                }
+                                className="rounded-md bg-violet-100 px-3 py-1 text-sm font-medium text-violet-700 hover:bg-violet-200"
+                              >
+                                Ver información
                               </button>
 
                               <button
@@ -856,6 +988,103 @@ export default function Declaraciones() {
         )}
 
       </main>
+
+      {/* MODAL VER INFORMACIÓN */}
+
+      {modalInformacionAbierto &&
+        declaracionVer && (
+
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">
+                  Información de la declaración
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Información completa de la declaración seleccionada.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={cerrarModalInformacion}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-600 hover:bg-slate-200"
+              >
+                ×
+              </button>
+
+            </div>
+
+            <div className="p-6">
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
+                <div className="rounded-lg border border-slate-200 p-4 md:col-span-2">
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Parque
+                  </p>
+                  <p className="mt-1 font-medium text-slate-900">
+                    {declaracionVer.parque?.ubicacion ?? 'Parque no disponible'}
+                  </p>
+                  {declaracionVer.parque?.numero_finca && (
+                    <p className="mt-1 text-sm text-slate-500">
+                      Finca: {declaracionVer.parque.numero_finca}
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Fecha de declaración
+                  </p>
+                  <p className="mt-1 font-medium text-slate-900">
+                    {mostrarFecha(declaracionVer.fecha_declaracion)}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Fecha de vencimiento
+                  </p>
+                  <p className="mt-1 font-medium text-slate-900">
+                    {mostrarFecha(declaracionVer.fecha_vencimiento)}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4 md:col-span-2">
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Estado
+                  </p>
+                  <div className="mt-2">
+                    <span className={obtenerClaseEstado(declaracionVer.estado_declaracion)}>
+                      {declaracionVer.estado_declaracion}
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="button"
+                  onClick={cerrarModalInformacion}
+                  className="rounded-lg bg-slate-900 px-5 py-2 font-semibold text-white hover:bg-slate-800"
+                >
+                  Cerrar
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
 
       {/* MODAL CREAR / EDITAR */}
 
@@ -987,6 +1216,27 @@ export default function Declaraciones() {
                 <div>
 
                   <label className="mb-2 block text-sm font-medium">
+                    Fecha de vencimiento
+                  </label>
+
+                  <input
+                    type="date"
+                    value={
+                      fechaVencimiento
+                    }
+                    readOnly
+                    className="w-full cursor-not-allowed rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-slate-700"
+                  />
+
+                  <p className="mt-1 text-xs text-slate-400">
+                    Se calcula automáticamente a 5 años de la fecha de declaración.
+                  </p>
+
+                </div>
+
+                <div>
+
+                  <label className="mb-2 block text-sm font-medium">
                     Estado de la declaración
                   </label>
 
@@ -1103,11 +1353,22 @@ export default function Declaraciones() {
 
                 <p className="mt-1 text-sm text-slate-500">
 
-                  Fecha:{' '}
+                  Fecha de declaración:{' '}
 
                   {mostrarFecha(
                     declaracionEliminar
                       .fecha_declaracion,
+                  )}
+
+                </p>
+
+                <p className="mt-1 text-sm text-slate-500">
+
+                  Vence:{' '}
+
+                  {mostrarFecha(
+                    declaracionEliminar
+                      .fecha_vencimiento,
                   )}
 
                 </p>

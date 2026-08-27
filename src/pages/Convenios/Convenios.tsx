@@ -16,6 +16,7 @@ interface Parque {
 
 interface Convenio {
   id_convenio: number;
+  numero_convenio: string | null;
   fecha_firma: string;
   plazo: number;
   fecha_renovacion_firmas: string;
@@ -55,6 +56,69 @@ const mostrarFecha = (
   }
 
   return `${partes[2]}/${partes[1]}/${partes[0]}`;
+};
+
+
+const calcularFechaRenovacion = (
+  fechaFirma: string,
+  plazoAnios: string,
+) => {
+  if (
+    !fechaFirma ||
+    !plazoAnios ||
+    Number(plazoAnios) <= 0
+  ) {
+    return '';
+  }
+
+  const partes =
+    fechaFirma.split('-');
+
+  if (partes.length !== 3) {
+    return '';
+  }
+
+  const anio =
+    Number(partes[0]);
+
+  const mes =
+    Number(partes[1]);
+
+  const dia =
+    Number(partes[2]);
+
+  const nuevosAnios =
+    anio + Number(plazoAnios);
+
+  const ultimoDiaMes =
+    new Date(
+      nuevosAnios,
+      mes,
+      0,
+    ).getDate();
+
+  const diaAjustado =
+    Math.min(
+      dia,
+      ultimoDiaMes,
+    );
+
+  const anioTexto =
+    String(nuevosAnios);
+
+  const mesTexto =
+    String(mes).padStart(
+      2,
+      '0',
+    );
+
+  const diaTexto =
+    String(diaAjustado).padStart(
+      2,
+      '0',
+    );
+
+  return `${anioTexto}-${mesTexto}-${diaTexto}`;
 };
 
 // ============================
@@ -118,6 +182,20 @@ export default function Convenios() {
   ] = useState<number | null>(null);
 
   // ============================
+  // MODAL VER INFORMACIÓN
+  // ============================
+
+  const [
+    modalInformacionAbierto,
+    setModalInformacionAbierto,
+  ] = useState(false);
+
+  const [
+    convenioVer,
+    setConvenioVer,
+  ] = useState<Convenio | null>(null);
+
+  // ============================
   // MODAL ELIMINAR
   // ============================
 
@@ -146,6 +224,11 @@ export default function Convenios() {
   // ============================
 
   const [
+    numeroConvenio,
+    setNumeroConvenio,
+  ] = useState('');
+
+  const [
     idParque,
     setIdParque,
   ] = useState('');
@@ -169,6 +252,25 @@ export default function Convenios() {
     estadoConvenio,
     setEstadoConvenio,
   ] = useState('Vigente');
+
+  // ============================
+  // CALCULAR RENOVACIÓN AUTOMÁTICA
+  // ============================
+
+  useEffect(() => {
+    const fechaCalculada =
+      calcularFechaRenovacion(
+        fechaFirma,
+        plazo,
+      );
+
+    setFechaRenovacion(
+      fechaCalculada,
+    );
+  }, [
+    fechaFirma,
+    plazo,
+  ]);
 
   // ============================
   // CARGAR CONVENIOS
@@ -240,6 +342,7 @@ export default function Convenios() {
 
   const limpiarFormulario =
     () => {
+      setNumeroConvenio('');
       setIdParque('');
       setFechaFirma('');
       setPlazo('');
@@ -274,6 +377,11 @@ export default function Convenios() {
   const abrirModalEditar = (
     convenio: Convenio,
   ) => {
+    setNumeroConvenio(
+      convenio.numero_convenio ??
+        '',
+    );
+
     setIdParque(
       convenio.parque
         ? String(
@@ -360,6 +468,16 @@ export default function Convenios() {
       // VALIDACIONES
       // ============================
 
+      if (
+        !numeroConvenio.trim()
+      ) {
+        setErrorFormulario(
+          'Debe ingresar el número de convenio.',
+        );
+
+        return;
+      }
+
       if (!idParque) {
         setErrorFormulario(
           'Debe seleccionar un parque.',
@@ -419,6 +537,9 @@ export default function Convenios() {
       // ============================
 
       const datosConvenio = {
+        numero_convenio:
+          numeroConvenio.trim(),
+
         id_parque:
           Number(idParque),
 
@@ -533,6 +654,22 @@ export default function Convenios() {
     } finally {
       setGuardando(false);
     }
+  };
+
+  // ============================
+  // VER INFORMACIÓN
+  // ============================
+
+  const abrirModalInformacion = (
+    convenio: Convenio,
+  ) => {
+    setConvenioVer(convenio);
+    setModalInformacionAbierto(true);
+  };
+
+  const cerrarModalInformacion = () => {
+    setModalInformacionAbierto(false);
+    setConvenioVer(null);
   };
 
   // ============================
@@ -838,6 +975,10 @@ export default function Convenios() {
                   <tr>
 
                     <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
+                      Número de convenio
+                    </th>
+
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
                       Parque
                     </th>
 
@@ -873,7 +1014,7 @@ export default function Convenios() {
                     <tr>
 
                       <td
-                        colSpan={6}
+                        colSpan={7}
                         className="px-4 py-12 text-center text-slate-500"
                       >
                         No hay convenios registrados.
@@ -892,6 +1033,15 @@ export default function Convenios() {
                           }
                           className="border-t border-slate-100 hover:bg-slate-50"
                         >
+
+                          {/* NÚMERO DE CONVENIO */}
+
+                          <td className="px-4 py-4 text-sm font-medium text-slate-900">
+                            {
+                              convenio.numero_convenio ||
+                              '—'
+                            }
+                          </td>
 
                           {/* PARQUE */}
 
@@ -988,6 +1138,18 @@ export default function Convenios() {
                               <button
                                 type="button"
                                 onClick={() =>
+                                  abrirModalInformacion(
+                                    convenio,
+                                  )
+                                }
+                                className="rounded-md bg-violet-100 px-3 py-1 text-sm font-medium text-violet-700 hover:bg-violet-200"
+                              >
+                                Ver información
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
                                   abrirModalEliminar(
                                     convenio,
                                   )
@@ -1019,6 +1181,123 @@ export default function Convenios() {
         )}
 
       </main>
+
+      {/* ============================ */}
+      {/* MODAL VER INFORMACIÓN */}
+      {/* ============================ */}
+
+      {modalInformacionAbierto &&
+        convenioVer && (
+
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">
+                  Información del convenio
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Información completa del convenio seleccionado.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={cerrarModalInformacion}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-600 hover:bg-slate-200"
+              >
+                ×
+              </button>
+
+            </div>
+
+            <div className="p-6">
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Número de convenio
+                  </p>
+                  <p className="mt-1 font-medium text-slate-900">
+                    {convenioVer.numero_convenio || 'No registrado'}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Parque
+                  </p>
+                  <p className="mt-1 font-medium text-slate-900">
+                    {convenioVer.parque?.ubicacion ?? 'Parque no disponible'}
+                  </p>
+                  {convenioVer.parque?.numero_finca && (
+                    <p className="mt-1 text-sm text-slate-500">
+                      Finca: {convenioVer.parque.numero_finca}
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Fecha de firma
+                  </p>
+                  <p className="mt-1 font-medium text-slate-900">
+                    {mostrarFecha(convenioVer.fecha_firma)}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Plazo
+                  </p>
+                  <p className="mt-1 font-medium text-slate-900">
+                    {convenioVer.plazo} {convenioVer.plazo === 1 ? 'año' : 'años'}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Fecha de renovación
+                  </p>
+                  <p className="mt-1 font-medium text-slate-900">
+                    {mostrarFecha(convenioVer.fecha_renovacion_firmas)}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Estado
+                  </p>
+                  <div className="mt-2">
+                    <span className={obtenerClaseEstado(convenioVer.estado_convenio)}>
+                      {convenioVer.estado_convenio}
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="button"
+                  onClick={cerrarModalInformacion}
+                  className="rounded-lg bg-slate-900 px-5 py-2 font-semibold text-white hover:bg-slate-800"
+                >
+                  Cerrar
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
 
       {/* ============================ */}
       {/* MODAL CREAR / EDITAR */}
@@ -1084,6 +1363,34 @@ export default function Convenios() {
               )}
 
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+
+                {/* NÚMERO DE CONVENIO */}
+
+                <div className="md:col-span-2">
+
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Número de convenio
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      numeroConvenio
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setNumeroConvenio(
+                        event.target.value,
+                      )
+                    }
+                    required
+                    maxLength={100}
+                    placeholder="Ej: CONV-2026-001"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+
+                </div>
 
                 {/* PARQUE */}
 
@@ -1170,7 +1477,7 @@ export default function Convenios() {
                 <div>
 
                   <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Plazo
+                    Plazo (años)
                   </label>
 
                   <input
@@ -1190,7 +1497,7 @@ export default function Convenios() {
                   />
 
                   <p className="mt-1 text-xs text-slate-400">
-                    Ejemplo: 5 años.
+                    Ejemplo: 5. La fecha de renovación se calcula automáticamente.
                   </p>
 
                 </div>
@@ -1208,20 +1515,14 @@ export default function Convenios() {
                     value={
                       fechaRenovacion
                     }
-                    min={
-                      fechaFirma ||
-                      undefined
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setFechaRenovacion(
-                        event.target.value,
-                      )
-                    }
+                    readOnly
                     required
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                    className="w-full cursor-not-allowed rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-slate-700"
                   />
+
+                  <p className="mt-1 text-xs text-slate-400">
+                    Se calcula automáticamente con la fecha de firma y el plazo en años.
+                  </p>
 
                 </div>
 
@@ -1346,6 +1647,14 @@ export default function Convenios() {
 
                 <p className="text-sm text-red-700">
                   ¿Está seguro de que desea eliminar este convenio?
+                </p>
+
+                <p className="mt-3 text-sm font-semibold text-slate-900">
+                  Convenio:{' '}
+                  {
+                    convenioEliminar.numero_convenio ||
+                    'Sin número'
+                  }
                 </p>
 
                 <p className="mt-3 font-semibold text-slate-900">

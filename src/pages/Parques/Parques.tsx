@@ -8,10 +8,6 @@ import { useNavigate } from 'react-router-dom';
 
 import { api } from '../../services/api';
 
-type TipoEncargado =
-  | 'ASOCIACION'
-  | 'PERSONA';
-
 interface Parque {
   id_parque: number;
   ubicacion: string;
@@ -36,9 +32,11 @@ interface Parque {
 
   encargado?: {
     id_encargado: number;
-    tipo_encargado: TipoEncargado;
-    nombre_asociacion: string | null;
-    nombre_encargado: string;
+    entidad_encargada: string;
+    cedula_juridica: string | null;
+    representante_legal: string;
+    correo_encargado: string;
+    telefono_encargado: string;
   };
 }
 
@@ -50,11 +48,9 @@ interface Distrito {
 
 interface Encargado {
   id_encargado: number;
-  tipo_encargado: TipoEncargado;
-  nombre_asociacion: string | null;
+  entidad_encargada: string;
   cedula_juridica: string | null;
-  nombre_encargado: string;
-  cedula_fisica: string | null;
+  representante_legal: string;
   correo_encargado: string;
   telefono_encargado: string;
 }
@@ -62,9 +58,9 @@ interface Encargado {
 export default function Parques() {
   const navigate = useNavigate();
 
-  // ============================
+  // ============================================
   // DATOS
-  // ============================
+  // ============================================
 
   const [
     parques,
@@ -91,9 +87,9 @@ export default function Parques() {
     setError,
   ] = useState('');
 
-  // ============================
+  // ============================================
   // MODAL CREAR / EDITAR
-  // ============================
+  // ============================================
 
   const [
     modalAbierto,
@@ -120,9 +116,9 @@ export default function Parques() {
     setIdParqueEditando,
   ] = useState<number | null>(null);
 
-  // ============================
+  // ============================================
   // MODAL ELIMINAR
-  // ============================
+  // ============================================
 
   const [
     modalEliminarAbierto,
@@ -144,9 +140,41 @@ export default function Parques() {
     setErrorEliminar,
   ] = useState('');
 
-  // ============================
+  // ============================================
+  // MODAL INFORMACIÓN ENCARGADO
+  // ============================================
+
+  const [
+    modalEncargadoAbierto,
+    setModalEncargadoAbierto,
+  ] = useState(false);
+
+  const [
+    encargadoVer,
+    setEncargadoVer,
+  ] = useState<Parque['encargado'] | null>(
+    null,
+  );
+
+  // ============================================
+  // MODAL INFORMACIÓN DEL PARQUE
+  // ============================================
+
+  const [
+    modalInformacionAbierto,
+    setModalInformacionAbierto,
+  ] = useState(false);
+
+  const [
+    parqueVer,
+    setParqueVer,
+  ] = useState<Parque | null>(
+    null,
+  );
+
+  // ============================================
   // FORMULARIO
-  // ============================
+  // ============================================
 
   const [
     ubicacion,
@@ -188,9 +216,9 @@ export default function Parques() {
     setIdEncargado,
   ] = useState('');
 
-  // ============================
+  // ============================================
   // CARGAR PARQUES
-  // ============================
+  // ============================================
 
   const cargarParques =
     async () => {
@@ -220,9 +248,9 @@ export default function Parques() {
       }
     };
 
-  // ============================
+  // ============================================
   // CARGAR DISTRITOS
-  // ============================
+  // ============================================
 
   const cargarDistritos =
     async () => {
@@ -243,32 +271,78 @@ export default function Parques() {
       }
     };
 
-  // ============================
+  // ============================================
   // CARGAR ENCARGADOS
-  // ============================
+  // ============================================
 
   const cargarEncargados =
     async () => {
       try {
+        const token =
+          localStorage.getItem(
+            'token',
+          );
+
+        if (!token) {
+          localStorage.removeItem(
+            'usuario',
+          );
+
+          navigate(
+            '/login',
+          );
+
+          return;
+        }
+
         const response =
           await api.get(
             '/encargados',
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            },
           );
 
         setEncargados(
           response.data,
         );
-      } catch (error) {
+      } catch (error: any) {
         console.error(
           'Error cargando encargados:',
           error,
         );
+
+        if (
+          error.response?.status ===
+          401
+        ) {
+          localStorage.removeItem(
+            'token',
+          );
+
+          localStorage.removeItem(
+            'usuario',
+          );
+
+          navigate(
+            '/login',
+          );
+
+          return;
+        }
+
+        console.error(
+          'No se pudieron cargar las entidades encargadas.',
+        );
       }
     };
 
-  // ============================
+  // ============================================
   // CARGA INICIAL
-  // ============================
+  // ============================================
 
   useEffect(() => {
     cargarParques();
@@ -276,9 +350,9 @@ export default function Parques() {
     cargarEncargados();
   }, []);
 
-  // ============================
+  // ============================================
   // LIMPIAR FORMULARIO
-  // ============================
+  // ============================================
 
   const limpiarFormulario =
     () => {
@@ -293,9 +367,9 @@ export default function Parques() {
       setErrorFormulario('');
     };
 
-  // ============================
+  // ============================================
   // NUEVO PARQUE
-  // ============================
+  // ============================================
 
   const abrirModalCrear =
     () => {
@@ -314,9 +388,9 @@ export default function Parques() {
       );
     };
 
-  // ============================
+  // ============================================
   // EDITAR PARQUE
-  // ============================
+  // ============================================
 
   const abrirModalEditar = (
     parque: Parque,
@@ -395,9 +469,9 @@ export default function Parques() {
     );
   };
 
-  // ============================
+  // ============================================
   // CERRAR MODAL
-  // ============================
+  // ============================================
 
   const cerrarModal =
     () => {
@@ -420,9 +494,9 @@ export default function Parques() {
       );
     };
 
-  // ============================
+  // ============================================
   // GUARDAR PARQUE
-  // ============================
+  // ============================================
 
   const guardarParque =
     async (
@@ -447,7 +521,6 @@ export default function Parques() {
 
         const datosParque = {
           ubicacion:
-
             ubicacion.trim(),
 
           numero_finca:
@@ -484,9 +557,9 @@ export default function Parques() {
             ),
         };
 
-        // ============================
+        // ========================================
         // EDITAR
-        // ============================
+        // ========================================
 
         if (
           modoEdicion &&
@@ -505,9 +578,9 @@ export default function Parques() {
           );
         }
 
-        // ============================
+        // ========================================
         // CREAR
-        // ============================
+        // ========================================
 
         else {
           await api.post(
@@ -542,10 +615,6 @@ export default function Parques() {
           'Error guardando parque:',
           error,
         );
-
-        // ============================
-        // TOKEN EXPIRADO
-        // ============================
 
         if (
           error.response
@@ -602,9 +671,9 @@ export default function Parques() {
       }
     };
 
-  // ============================
+  // ============================================
   // ABRIR MODAL ELIMINAR
-  // ============================
+  // ============================================
 
   const abrirModalEliminar = (
     parque: Parque,
@@ -622,9 +691,9 @@ export default function Parques() {
     );
   };
 
-  // ============================
+  // ============================================
   // CERRAR MODAL ELIMINAR
-  // ============================
+  // ============================================
 
   const cerrarModalEliminar =
     () => {
@@ -645,9 +714,9 @@ export default function Parques() {
       );
     };
 
-  // ============================
+  // ============================================
   // CONFIRMAR ELIMINACIÓN
-  // ============================
+  // ============================================
 
   const confirmarEliminarParque =
     async () => {
@@ -694,10 +763,6 @@ export default function Parques() {
           error,
         );
 
-        // ============================
-        // TOKEN EXPIRADO
-        // ============================
-
         if (
           error.response
             ?.status ===
@@ -717,49 +782,6 @@ export default function Parques() {
 
           return;
         }
-
-        // ============================
-        // CONFLICTO POR RELACIONES
-        // ============================
-
-        if (
-          error.response
-            ?.status ===
-          409
-        ) {
-          const message =
-            error.response
-              ?.data
-              ?.message;
-
-          if (
-            Array.isArray(
-              message,
-            )
-          ) {
-            setErrorEliminar(
-              message.join(
-                ', ',
-              ),
-            );
-          } else if (
-            message
-          ) {
-            setErrorEliminar(
-              message,
-            );
-          } else {
-            setErrorEliminar(
-              'No se puede eliminar este parque porque está relacionado con otros registros.',
-            );
-          }
-
-          return;
-        }
-
-        // ============================
-        // OTROS ERRORES DEL BACKEND
-        // ============================
 
         const message =
           error.response
@@ -794,29 +816,67 @@ export default function Parques() {
       }
     };
 
-  // ============================
-  // NOMBRE DEL ENCARGADO
-  // ============================
+  // ============================================
+  // VER INFORMACIÓN DEL ENCARGADO
+  // ============================================
 
-  const obtenerNombreEncargado = (
-    encargado: Encargado,
+  const abrirModalEncargado = (
+    parque: Parque,
   ) => {
-    if (
-      encargado.tipo_encargado ===
-      'ASOCIACION'
-    ) {
-      return (
-        encargado.nombre_asociacion ||
-        encargado.nombre_encargado
-      );
+    if (!parque.encargado) {
+      return;
     }
 
-    return encargado.nombre_encargado;
+    setEncargadoVer(
+      parque.encargado,
+    );
+
+    setModalEncargadoAbierto(
+      true,
+    );
   };
 
-  // ============================
-  // CERRAR SESIÓN
-  // ============================
+  const cerrarModalEncargado =
+    () => {
+      setModalEncargadoAbierto(
+        false,
+      );
+
+      setEncargadoVer(
+        null,
+      );
+    };
+
+  // ============================================
+  // VER INFORMACIÓN DEL PARQUE
+  // ============================================
+
+  const abrirModalInformacion = (
+    parque: Parque,
+  ) => {
+    setParqueVer(
+      parque,
+    );
+
+    setModalInformacionAbierto(
+      true,
+    );
+  };
+
+  const cerrarModalInformacion =
+    () => {
+      setModalInformacionAbierto(
+        false,
+      );
+
+      setParqueVer(
+        null,
+      );
+    };
+
+  // ============================================
+  // LOGOUT
+  // ============================================
 
   const handleLogout =
     () => {
@@ -836,9 +896,9 @@ export default function Parques() {
   return (
     <div className="min-h-screen bg-slate-100">
 
-      {/* ============================ */}
+      {/* ====================================== */}
       {/* HEADER */}
-      {/* ============================ */}
+      {/* ====================================== */}
 
       <header className="border-b border-slate-200 bg-white px-8 py-5">
 
@@ -886,9 +946,9 @@ export default function Parques() {
 
       </header>
 
-      {/* ============================ */}
+      {/* ====================================== */}
       {/* CONTENIDO */}
-      {/* ============================ */}
+      {/* ====================================== */}
 
       <main className="mx-auto max-w-7xl px-8 py-10">
 
@@ -918,9 +978,7 @@ export default function Parques() {
 
         </div>
 
-        {/* ============================ */}
         {/* CARGANDO */}
-        {/* ============================ */}
 
         {cargando && (
           <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">
@@ -928,9 +986,7 @@ export default function Parques() {
           </div>
         )}
 
-        {/* ============================ */}
-        {/* ERROR CARGA */}
-        {/* ============================ */}
+        {/* ERROR */}
 
         {!cargando &&
           error && (
@@ -955,9 +1011,9 @@ export default function Parques() {
 
         )}
 
-        {/* ============================ */}
+        {/* ====================================== */}
         {/* TABLA */}
-        {/* ============================ */}
+        {/* ====================================== */}
 
         {!cargando &&
           !error && (
@@ -997,7 +1053,7 @@ export default function Parques() {
                     </th>
 
                     <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
-                      Encargado
+                      Entidad encargada
                     </th>
 
                     <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
@@ -1031,7 +1087,9 @@ export default function Parques() {
                   ) : (
 
                     parques.map(
-                      (parque) => (
+                      (
+                        parque,
+                      ) => (
 
                         <tr
                           key={
@@ -1040,15 +1098,11 @@ export default function Parques() {
                           className="border-t border-slate-100 hover:bg-slate-50"
                         >
 
-                          {/* UBICACIÓN */}
-
                           <td className="px-4 py-4 font-medium text-slate-900">
                             {
                               parque.ubicacion
                             }
                           </td>
-
-                          {/* FINCA */}
 
                           <td className="px-4 py-4 text-slate-700">
                             {
@@ -1056,14 +1110,10 @@ export default function Parques() {
                             }
                           </td>
 
-                          {/* ÁREA */}
-
                           <td className="px-4 py-4 text-slate-700">
                             {parque.area}{' '}
                             m²
                           </td>
-
-                          {/* PLANO */}
 
                           <td className="px-4 py-4 text-slate-700">
                             {
@@ -1071,15 +1121,11 @@ export default function Parques() {
                             }
                           </td>
 
-                          {/* VISADO */}
-
                           <td className="px-4 py-4 text-slate-700">
                             {
                               parque.visado
                             }
                           </td>
-
-                          {/* DISTRITO */}
 
                           <td className="px-4 py-4 text-slate-700">
 
@@ -1089,34 +1135,55 @@ export default function Parques() {
 
                           </td>
 
-                          {/* ENCARGADO */}
+                          {/* ENTIDAD ENCARGADA */}
 
-                          <td className="px-4 py-4 text-slate-700">
+                          <td className="px-4 py-4">
 
-                            {parque.encargado
-                              ? parque.encargado
-                                  .tipo_encargado ===
-                                'ASOCIACION'
-                                ? parque.encargado
-                                    .nombre_asociacion ||
-                                  parque.encargado
-                                    .nombre_encargado
-                                : parque.encargado
-                                    .nombre_encargado
-                              : 'Sin encargado'}
+                            {parque.encargado ? (
+
+                              <div>
+
+                                <p className="font-medium text-slate-900">
+                                  {
+                                    parque.encargado
+                                      .entidad_encargada
+                                  }
+                                </p>
+
+                                <p className="mt-1 text-xs text-slate-500">
+                                  Rep. legal:{' '}
+                                  {
+                                    parque.encargado
+                                      .representante_legal
+                                  }
+                                </p>
+
+                              </div>
+
+                            ) : (
+
+                              <span className="text-slate-400">
+                                Sin encargado
+                              </span>
+
+                            )}
 
                           </td>
-
-                          {/* ESTADO */}
 
                           <td className="px-4 py-4">
 
                             <span
                               className={
                                 parque.estado ===
-                                'Activo'
+                                'Bueno'
                                   ? 'rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700'
-                                  : 'rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700'
+                                  : parque.estado ===
+                                      'Regular'
+                                    ? 'rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-700'
+                                    : parque.estado ===
+                                        'Malo'
+                                      ? 'rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700'
+                                      : 'rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700'
                               }
                             >
                               {
@@ -1125,8 +1192,6 @@ export default function Parques() {
                             </span>
 
                           </td>
-
-                          {/* ACCIONES */}
 
                           <td className="px-4 py-4">
 
@@ -1142,6 +1207,33 @@ export default function Parques() {
                                 className="rounded-md bg-sky-100 px-3 py-1 text-sm font-medium text-sky-700 hover:bg-sky-200"
                               >
                                 Editar
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  abrirModalInformacion(
+                                    parque,
+                                  )
+                                }
+                                className="rounded-md bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700 hover:bg-indigo-200"
+                              >
+                                Ver información
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  abrirModalEncargado(
+                                    parque,
+                                  )
+                                }
+                                disabled={
+                                  !parque.encargado
+                                }
+                                className="rounded-md bg-violet-100 px-3 py-1 text-sm font-medium text-violet-700 hover:bg-violet-200 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Ver encargado
                               </button>
 
                               <button
@@ -1179,17 +1271,15 @@ export default function Parques() {
 
       </main>
 
-      {/* ============================ */}
+      {/* ====================================== */}
       {/* MODAL CREAR / EDITAR */}
-      {/* ============================ */}
+      {/* ====================================== */}
 
       {modalAbierto && (
 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
 
           <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl">
-
-            {/* HEADER MODAL */}
 
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
 
@@ -1225,8 +1315,6 @@ export default function Parques() {
 
             </div>
 
-            {/* FORMULARIO */}
-
             <form
               onSubmit={
                 guardarParque
@@ -1237,7 +1325,9 @@ export default function Parques() {
               {errorFormulario && (
 
                 <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                  {errorFormulario}
+                  {
+                    errorFormulario
+                  }
                 </div>
 
               )}
@@ -1310,7 +1400,9 @@ export default function Parques() {
                     type="number"
                     step="0.01"
                     min="0"
-                    value={area}
+                    value={
+                      area
+                    }
                     onChange={(
                       event,
                     ) =>
@@ -1406,12 +1498,16 @@ export default function Parques() {
                       Seleccione el estado
                     </option>
 
-                    <option value="Activo">
-                      Activo
+                    <option value="Bueno">
+                      Bueno
                     </option>
 
-                    <option value="Inactivo">
-                      Inactivo
+                    <option value="Regular">
+                      Regular
+                    </option>
+
+                    <option value="Malo">
+                      Malo
                     </option>
 
                   </select>
@@ -1470,12 +1566,12 @@ export default function Parques() {
 
                 </div>
 
-                {/* ENCARGADO */}
+                {/* ENTIDAD ENCARGADA */}
 
                 <div>
 
                   <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Encargado
+                    Entidad encargada
                   </label>
 
                   <select
@@ -1494,7 +1590,7 @@ export default function Parques() {
                   >
 
                     <option value="">
-                      Seleccione un encargado
+                      Seleccione una entidad encargada
                     </option>
 
                     {encargados.map(
@@ -1510,18 +1606,13 @@ export default function Parques() {
                             encargado.id_encargado
                           }
                         >
-
-                          {obtenerNombreEncargado(
-                            encargado,
-                          )}
-
+                          {
+                            encargado.entidad_encargada
+                          }
                           {' — '}
-
-                          {encargado.tipo_encargado ===
-                          'ASOCIACION'
-                            ? 'Asociación'
-                            : 'Persona'}
-
+                          {
+                            encargado.representante_legal
+                          }
                         </option>
 
                       ),
@@ -1576,9 +1667,409 @@ export default function Parques() {
 
       )}
 
-      {/* ============================ */}
+      {/* ====================================== */}
+      {/* MODAL INFORMACIÓN DEL PARQUE */}
+      {/* ====================================== */}
+
+      {modalInformacionAbierto &&
+        parqueVer && (
+
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
+
+          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl">
+
+            {/* HEADER */}
+
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+
+              <div>
+
+                <h2 className="text-xl font-bold text-slate-900">
+                  Información del parque
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Información completa del parque seleccionado.
+                </p>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  cerrarModalInformacion
+                }
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-600 hover:bg-slate-200"
+              >
+                ×
+              </button>
+
+            </div>
+
+            {/* CONTENIDO */}
+
+            <div className="p-6">
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Ubicación
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      parqueVer.ubicacion
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Número de finca
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      parqueVer.numero_finca
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Área
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      parqueVer.area
+                    }{' '}
+                    m²
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Número de plano
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      parqueVer.numero_plano
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Visado
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      parqueVer.visado
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Estado
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      parqueVer.estado
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Distrito
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      parqueVer.distrito
+                        ?.nombre_distrito ||
+                      'Sin distrito'
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Entidad encargada
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      parqueVer.encargado
+                        ?.entidad_encargada ||
+                      'Sin encargado'
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Representante legal
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      parqueVer.encargado
+                        ?.representante_legal ||
+                      'No registrado'
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Descripción de inversión
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      parqueVer.descripcion_inversion ||
+                      'Sin información'
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Inversión
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    ₡
+                    {
+                      Number(
+                        parqueVer.inversion ||
+                        0,
+                      ).toLocaleString(
+                        'es-CR',
+                      )
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Fecha de inversión
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      parqueVer.fecha_inversion
+                        ? parqueVer.fecha_inversion
+                            .substring(
+                              0,
+                              10,
+                            )
+                            .split('-')
+                            .reverse()
+                            .join('/')
+                        : 'Sin información'
+                    }
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div className="mt-6 flex justify-end">
+
+                <button
+                  type="button"
+                  onClick={
+                    cerrarModalInformacion
+                  }
+                  className="rounded-lg bg-slate-900 px-5 py-2 font-semibold text-white hover:bg-slate-800"
+                >
+                  Cerrar
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* ====================================== */}
+      {/* MODAL INFORMACIÓN ENCARGADO */}
+      {/* ====================================== */}
+
+      {modalEncargadoAbierto &&
+        encargadoVer && (
+
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+
+            {/* HEADER */}
+
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+
+              <div>
+
+                <h2 className="text-xl font-bold text-slate-900">
+                  Información del encargado
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Datos de la entidad encargada y su representante legal.
+                </p>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  cerrarModalEncargado
+                }
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-600 hover:bg-slate-200"
+              >
+                ×
+              </button>
+
+            </div>
+
+            {/* CONTENIDO */}
+
+            <div className="p-6">
+
+              <div className="mb-5 rounded-xl bg-slate-50 p-4">
+
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Entidad encargada
+                </p>
+
+                <p className="mt-1 text-lg font-semibold text-slate-900">
+                  {
+                    encargadoVer.entidad_encargada
+                  }
+                </p>
+
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Cédula jurídica
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      encargadoVer.cedula_juridica ||
+                      'No registrada'
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Representante legal
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      encargadoVer.representante_legal
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Correo electrónico
+                  </p>
+
+                  <p className="mt-1 break-all font-medium text-slate-900">
+                    {
+                      encargadoVer.correo_encargado
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Teléfono
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      encargadoVer.telefono_encargado
+                    }
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div className="mt-6 flex justify-end">
+
+                <button
+                  type="button"
+                  onClick={
+                    cerrarModalEncargado
+                  }
+                  className="rounded-lg bg-slate-900 px-5 py-2 font-semibold text-white hover:bg-slate-800"
+                >
+                  Cerrar
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* ====================================== */}
       {/* MODAL ELIMINAR */}
-      {/* ============================ */}
+      {/* ====================================== */}
 
       {modalEliminarAbierto &&
         parqueEliminar && (
@@ -1586,8 +2077,6 @@ export default function Parques() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
 
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
-
-            {/* HEADER */}
 
             <div className="border-b border-slate-200 px-6 py-5">
 
@@ -1602,8 +2091,6 @@ export default function Parques() {
             </div>
 
             <div className="p-6">
-
-              {/* INFORMACIÓN */}
 
               <div className="rounded-xl bg-red-50 p-4">
 
@@ -1626,10 +2113,6 @@ export default function Parques() {
 
               </div>
 
-              {/* ============================ */}
-              {/* ERROR DE ELIMINACIÓN */}
-              {/* ============================ */}
-
               {errorEliminar && (
 
                 <div className="mt-4 rounded-lg border border-red-300 bg-red-50 p-4">
@@ -1639,14 +2122,14 @@ export default function Parques() {
                   </p>
 
                   <p className="mt-1 text-sm text-red-700">
-                    {errorEliminar}
+                    {
+                      errorEliminar
+                    }
                   </p>
 
                 </div>
 
               )}
-
-              {/* BOTONES */}
 
               <div className="mt-6 flex justify-end gap-3">
 
