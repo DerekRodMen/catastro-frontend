@@ -88,6 +88,67 @@ export default function Parques() {
   ] = useState('');
 
   // ============================================
+  // FILTROS DE BÚSQUEDA
+  // ============================================
+
+  const [filtroUbicacion, setFiltroUbicacion] = useState('');
+  const [filtroFinca, setFiltroFinca] = useState('');
+  const [filtroPlano, setFiltroPlano] = useState('');
+  const [filtroDistrito, setFiltroDistrito] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('');
+  const [filtroEncargado, setFiltroEncargado] = useState('');
+
+  const limpiarFiltros = () => {
+    setFiltroUbicacion('');
+    setFiltroFinca('');
+    setFiltroPlano('');
+    setFiltroDistrito('');
+    setFiltroEstado('');
+    setFiltroEncargado('');
+  };
+
+  const normalizarTexto = (valor: string | null | undefined) =>
+    (valor ?? '').toLowerCase().trim();
+
+  const parquesFiltrados = parques.filter((parque) => {
+    const coincideUbicacion = normalizarTexto(parque.ubicacion).includes(normalizarTexto(filtroUbicacion));
+    const coincideFinca = normalizarTexto(parque.numero_finca).includes(normalizarTexto(filtroFinca));
+    const coincidePlano = normalizarTexto(parque.numero_plano).includes(normalizarTexto(filtroPlano));
+    const coincideDistrito =
+      !filtroDistrito ||
+      String(parque.distrito?.id_distrito ?? parque.id_distrito) === filtroDistrito;
+    const coincideEstado = !filtroEstado || parque.estado === filtroEstado;
+
+    const textoEncargado = normalizarTexto(
+      [
+        parque.encargado?.entidad_encargada,
+        parque.encargado?.representante_legal,
+        parque.encargado?.cedula_juridica,
+      ].filter(Boolean).join(' '),
+    );
+
+    const coincideEncargado = textoEncargado.includes(normalizarTexto(filtroEncargado));
+
+    return (
+      coincideUbicacion &&
+      coincideFinca &&
+      coincidePlano &&
+      coincideDistrito &&
+      coincideEstado &&
+      coincideEncargado
+    );
+  });
+
+  const hayFiltrosActivos = Boolean(
+    filtroUbicacion ||
+    filtroFinca ||
+    filtroPlano ||
+    filtroDistrito ||
+    filtroEstado ||
+    filtroEncargado,
+  );
+
+  // ============================================
   // MODAL CREAR / EDITAR
   // ============================================
 
@@ -978,6 +1039,111 @@ export default function Parques() {
 
         </div>
 
+        {/* FILTROS DE BÚSQUEDA */}
+
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="font-semibold text-slate-900">Filtros de búsqueda</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Utilice uno o varios criterios para localizar parques específicos.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={limpiarFiltros}
+              disabled={!hayFiltrosActivos}
+              className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Limpiar filtros
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Ubicación</label>
+              <input
+                type="text"
+                value={filtroUbicacion}
+                onChange={(event) => setFiltroUbicacion(event.target.value)}
+                placeholder="Buscar por ubicación"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Número de finca</label>
+              <input
+                type="text"
+                value={filtroFinca}
+                onChange={(event) => setFiltroFinca(event.target.value)}
+                placeholder="Buscar por finca"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Número de plano</label>
+              <input
+                type="text"
+                value={filtroPlano}
+                onChange={(event) => setFiltroPlano(event.target.value)}
+                placeholder="Buscar por plano"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Distrito</label>
+              <select
+                value={filtroDistrito}
+                onChange={(event) => setFiltroDistrito(event.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="">Todos los distritos</option>
+                {distritos.map((distrito) => (
+                  <option key={distrito.id_distrito} value={distrito.id_distrito}>
+                    {distrito.nombre_distrito}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Estado</label>
+              <select
+                value={filtroEstado}
+                onChange={(event) => setFiltroEstado(event.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="">Todos los estados</option>
+                <option value="Bueno">Bueno</option>
+                <option value="Regular">Regular</option>
+                <option value="Malo">Malo</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Entidad encargada</label>
+              <input
+                type="text"
+                value={filtroEncargado}
+                onChange={(event) => setFiltroEncargado(event.target.value)}
+                placeholder="Entidad, representante o cédula"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <p className="text-sm text-slate-500">
+              Mostrando <span className="font-semibold text-slate-900">{parquesFiltrados.length}</span>
+              {' '}de <span className="font-semibold text-slate-900">{parques.length}</span> parques.
+            </p>
+          </div>
+        </div>
+
         {/* CARGANDO */}
 
         {cargando && (
@@ -1070,7 +1236,7 @@ export default function Parques() {
 
                 <tbody>
 
-                  {parques.length ===
+                  {parquesFiltrados.length ===
                   0 ? (
 
                     <tr>
@@ -1079,14 +1245,16 @@ export default function Parques() {
                         colSpan={9}
                         className="px-4 py-12 text-center text-slate-500"
                       >
-                        No hay parques registrados.
+                        {hayFiltrosActivos
+                          ? 'No se encontraron parques que coincidan con los filtros seleccionados.'
+                          : 'No hay parques registrados.'}
                       </td>
 
                     </tr>
 
                   ) : (
 
-                    parques.map(
+                    parquesFiltrados.map(
                       (
                         parque,
                       ) => (

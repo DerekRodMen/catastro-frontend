@@ -40,6 +40,103 @@ export default function Encargados() {
   ] = useState('');
 
   // ============================================
+  // FILTROS DE BÚSQUEDA
+  // ============================================
+
+  const [filtroEntidad, setFiltroEntidad] = useState('');
+  const [filtroCedula, setFiltroCedula] = useState('');
+  const [filtroRepresentante, setFiltroRepresentante] = useState('');
+  const [filtroCorreo, setFiltroCorreo] = useState('');
+  const [filtroTelefono, setFiltroTelefono] = useState('');
+
+  const normalizarTexto = (
+    valor: string | null | undefined,
+  ) =>
+    (valor ?? '')
+      .toLowerCase()
+      .trim();
+
+  const normalizarNumeros = (
+    valor: string | null | undefined,
+  ) =>
+    (valor ?? '').replace(/\D/g, '');
+
+  const encargadosFiltrados =
+    encargados.filter(
+      (encargado) => {
+        const coincideEntidad =
+          normalizarTexto(
+            encargado.entidad_encargada,
+          ).includes(
+            normalizarTexto(
+              filtroEntidad,
+            ),
+          );
+
+        const coincideCedula =
+          normalizarNumeros(
+            encargado.cedula_juridica,
+          ).includes(
+            normalizarNumeros(
+              filtroCedula,
+            ),
+          );
+
+        const coincideRepresentante =
+          normalizarTexto(
+            encargado.representante_legal,
+          ).includes(
+            normalizarTexto(
+              filtroRepresentante,
+            ),
+          );
+
+        const coincideCorreo =
+          normalizarTexto(
+            encargado.correo_encargado,
+          ).includes(
+            normalizarTexto(
+              filtroCorreo,
+            ),
+          );
+
+        const coincideTelefono =
+          normalizarNumeros(
+            encargado.telefono_encargado,
+          ).includes(
+            normalizarNumeros(
+              filtroTelefono,
+            ),
+          );
+
+        return (
+          coincideEntidad &&
+          coincideCedula &&
+          coincideRepresentante &&
+          coincideCorreo &&
+          coincideTelefono
+        );
+      },
+    );
+
+  const hayFiltrosActivos =
+    Boolean(
+      filtroEntidad ||
+      filtroCedula ||
+      filtroRepresentante ||
+      filtroCorreo ||
+      filtroTelefono,
+    );
+
+  const limpiarFiltros = () => {
+    setFiltroEntidad('');
+    setFiltroCedula('');
+    setFiltroRepresentante('');
+    setFiltroCorreo('');
+    setFiltroTelefono('');
+  };
+
+  // ============================================
   // MODAL CREAR / EDITAR
   // ============================================
 
@@ -863,6 +960,145 @@ export default function Encargados() {
 
         </div>
 
+        {/* ====================================== */}
+        {/* FILTROS DE BÚSQUEDA */}
+        {/* ====================================== */}
+
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+            <div>
+              <h3 className="font-semibold text-slate-900">
+                Filtros de búsqueda
+              </h3>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Utilice uno o varios criterios para localizar encargados específicos.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={limpiarFiltros}
+              disabled={!hayFiltrosActivos}
+              className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Limpiar filtros
+            </button>
+
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Entidad encargada
+              </label>
+
+              <input
+                type="text"
+                value={filtroEntidad}
+                onChange={(event) =>
+                  setFiltroEntidad(
+                    event.target.value,
+                  )
+                }
+                placeholder="Buscar por entidad"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Cédula jurídica
+              </label>
+
+              <input
+                type="text"
+                value={filtroCedula}
+                onChange={(event) =>
+                  setFiltroCedula(
+                    event.target.value,
+                  )
+                }
+                placeholder="Ej: 3-002-123456"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Representante legal
+              </label>
+
+              <input
+                type="text"
+                value={filtroRepresentante}
+                onChange={(event) =>
+                  setFiltroRepresentante(
+                    event.target.value,
+                  )
+                }
+                placeholder="Buscar por representante"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Correo electrónico
+              </label>
+
+              <input
+                type="text"
+                value={filtroCorreo}
+                onChange={(event) =>
+                  setFiltroCorreo(
+                    event.target.value,
+                  )
+                }
+                placeholder="Buscar por correo"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Teléfono
+              </label>
+
+              <input
+                type="text"
+                value={filtroTelefono}
+                onChange={(event) =>
+                  setFiltroTelefono(
+                    event.target.value,
+                  )
+                }
+                placeholder="Ej: 8888-8888"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+          </div>
+
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <p className="text-sm text-slate-500">
+              Mostrando{' '}
+              <span className="font-semibold text-slate-900">
+                {encargadosFiltrados.length}
+              </span>{' '}
+              de{' '}
+              <span className="font-semibold text-slate-900">
+                {encargados.length}
+              </span>{' '}
+              encargados.
+            </p>
+          </div>
+
+        </div>
+
         {/* CARGANDO */}
 
         {cargando && (
@@ -945,7 +1181,7 @@ export default function Encargados() {
 
                 <tbody>
 
-                  {encargados.length ===
+                  {encargadosFiltrados.length ===
                   0 ? (
 
                     <tr>
@@ -954,14 +1190,16 @@ export default function Encargados() {
                         colSpan={6}
                         className="px-4 py-12 text-center text-slate-500"
                       >
-                        No hay encargados registrados.
+                        {hayFiltrosActivos
+                          ? 'No se encontraron encargados que coincidan con los filtros seleccionados.'
+                          : 'No hay encargados registrados.'}
                       </td>
 
                     </tr>
 
                   ) : (
 
-                    encargados.map(
+                    encargadosFiltrados.map(
                       (
                         encargado,
                       ) => (

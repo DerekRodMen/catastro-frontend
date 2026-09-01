@@ -33,6 +33,65 @@ export default function Distritos() {
   ] = useState('');
 
   // ============================
+  // FILTROS DE BÚSQUEDA
+  // ============================
+
+  const [
+    filtroNombre,
+    setFiltroNombre,
+  ] = useState('');
+
+  const [
+    filtroNumero,
+    setFiltroNumero,
+  ] = useState('');
+
+  const normalizarTexto = (
+    valor: string | null | undefined,
+  ) =>
+    (valor ?? '')
+      .toLowerCase()
+      .trim();
+
+  const distritosFiltrados =
+    distritos.filter(
+      (distrito) => {
+        const coincideNombre =
+          normalizarTexto(
+            distrito.nombre_distrito,
+          ).includes(
+            normalizarTexto(
+              filtroNombre,
+            ),
+          );
+
+        const coincideNumero =
+          !filtroNumero ||
+          String(
+            distrito.numero_distrito,
+          ).includes(
+            filtroNumero.trim(),
+          );
+
+        return (
+          coincideNombre &&
+          coincideNumero
+        );
+      },
+    );
+
+  const hayFiltrosActivos =
+    Boolean(
+      filtroNombre ||
+      filtroNumero,
+    );
+
+  const limpiarFiltros = () => {
+    setFiltroNombre('');
+    setFiltroNumero('');
+  };
+
+  // ============================
   // MODAL CREAR / EDITAR
   // ============================
 
@@ -509,6 +568,92 @@ export default function Distritos() {
 
         </div>
 
+        {/* ============================ */}
+        {/* FILTROS DE BÚSQUEDA */}
+        {/* ============================ */}
+
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+            <div>
+              <h3 className="font-semibold text-slate-900">
+                Filtros de búsqueda
+              </h3>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Utilice uno o ambos criterios para localizar distritos específicos.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={limpiarFiltros}
+              disabled={!hayFiltrosActivos}
+              className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Limpiar filtros
+            </button>
+
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Nombre del distrito
+              </label>
+
+              <input
+                type="text"
+                value={filtroNombre}
+                onChange={(event) =>
+                  setFiltroNombre(
+                    event.target.value,
+                  )
+                }
+                placeholder="Ej: Grecia"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Número de distrito
+              </label>
+
+              <input
+                type="number"
+                min="1"
+                value={filtroNumero}
+                onChange={(event) =>
+                  setFiltroNumero(
+                    event.target.value,
+                  )
+                }
+                placeholder="Ej: 1"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+          </div>
+
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <p className="text-sm text-slate-500">
+              Mostrando{' '}
+              <span className="font-semibold text-slate-900">
+                {distritosFiltrados.length}
+              </span>{' '}
+              de{' '}
+              <span className="font-semibold text-slate-900">
+                {distritos.length}
+              </span>{' '}
+              distritos.
+            </p>
+          </div>
+
+        </div>
+
         {cargando && (
           <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">
             Cargando distritos...
@@ -569,7 +714,7 @@ export default function Distritos() {
 
                 <tbody>
 
-                  {distritos.length ===
+                  {distritosFiltrados.length ===
                   0 ? (
 
                     <tr>
@@ -578,14 +723,16 @@ export default function Distritos() {
                         colSpan={3}
                         className="px-4 py-12 text-center text-slate-500"
                       >
-                        No hay distritos registrados.
+                        {hayFiltrosActivos
+                          ? 'No se encontraron distritos que coincidan con los filtros seleccionados.'
+                          : 'No hay distritos registrados.'}
                       </td>
 
                     </tr>
 
                   ) : (
 
-                    distritos.map(
+                    distritosFiltrados.map(
                       (distrito) => (
 
                         <tr

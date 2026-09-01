@@ -153,6 +153,106 @@ export default function Convenios() {
   ] = useState('');
 
   // ============================
+  // FILTROS DE BÚSQUEDA
+  // ============================
+
+  const [
+    filtroNumeroConvenio,
+    setFiltroNumeroConvenio,
+  ] = useState('');
+
+  const [
+    filtroParque,
+    setFiltroParque,
+  ] = useState('');
+
+  const [
+    filtroEstado,
+    setFiltroEstado,
+  ] = useState('');
+
+  const [
+    filtroFechaFirma,
+    setFiltroFechaFirma,
+  ] = useState('');
+
+  const [
+    filtroFechaRenovacion,
+    setFiltroFechaRenovacion,
+  ] = useState('');
+
+  const normalizarTexto = (
+    valor: string | null | undefined,
+  ) =>
+    (valor ?? '')
+      .toLowerCase()
+      .trim();
+
+  const conveniosFiltrados =
+    convenios.filter(
+      (convenio) => {
+        const coincideNumero =
+          normalizarTexto(
+            convenio.numero_convenio,
+          ).includes(
+            normalizarTexto(
+              filtroNumeroConvenio,
+            ),
+          );
+
+        const coincideParque =
+          !filtroParque ||
+          String(
+            convenio.parque
+              ?.id_parque ?? '',
+          ) === filtroParque;
+
+        const coincideEstado =
+          !filtroEstado ||
+          convenio.estado_convenio ===
+            filtroEstado;
+
+        const coincideFechaFirma =
+          !filtroFechaFirma ||
+          obtenerFechaInput(
+            convenio.fecha_firma,
+          ) === filtroFechaFirma;
+
+        const coincideFechaRenovacion =
+          !filtroFechaRenovacion ||
+          obtenerFechaInput(
+            convenio
+              .fecha_renovacion_firmas,
+          ) === filtroFechaRenovacion;
+
+        return (
+          coincideNumero &&
+          coincideParque &&
+          coincideEstado &&
+          coincideFechaFirma &&
+          coincideFechaRenovacion
+        );
+      },
+    );
+
+  const hayFiltrosActivos =
+    Boolean(
+      filtroNumeroConvenio ||
+      filtroParque ||
+      filtroEstado ||
+      filtroFechaFirma ||
+      filtroFechaRenovacion,
+    );
+
+  const limpiarFiltros = () => {
+    setFiltroNumeroConvenio('');
+    setFiltroParque('');
+    setFiltroEstado('');
+    setFiltroFechaFirma('');
+    setFiltroFechaRenovacion('');
+  };
+
+  // ============================
   // MODAL CREAR / EDITAR
   // ============================
 
@@ -924,6 +1024,172 @@ export default function Convenios() {
 
         </div>
 
+        {/* ============================ */}
+        {/* FILTROS DE BÚSQUEDA */}
+        {/* ============================ */}
+
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+            <div>
+              <h3 className="font-semibold text-slate-900">
+                Filtros de búsqueda
+              </h3>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Utilice uno o varios criterios para localizar convenios específicos.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={limpiarFiltros}
+              disabled={!hayFiltrosActivos}
+              className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Limpiar filtros
+            </button>
+
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Número de convenio
+              </label>
+
+              <input
+                type="text"
+                value={filtroNumeroConvenio}
+                onChange={(event) =>
+                  setFiltroNumeroConvenio(
+                    event.target.value,
+                  )
+                }
+                placeholder="Ej: CONV-2026-001"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Parque
+              </label>
+
+              <select
+                value={filtroParque}
+                onChange={(event) =>
+                  setFiltroParque(
+                    event.target.value,
+                  )
+                }
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="">
+                  Todos los parques
+                </option>
+
+                {parques.map(
+                  (parque) => (
+                    <option
+                      key={parque.id_parque}
+                      value={parque.id_parque}
+                    >
+                      {parque.ubicacion}
+                      {' - Finca '}
+                      {parque.numero_finca}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Estado
+              </label>
+
+              <select
+                value={filtroEstado}
+                onChange={(event) =>
+                  setFiltroEstado(
+                    event.target.value,
+                  )
+                }
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="">
+                  Todos los estados
+                </option>
+                <option value="Vigente">
+                  Vigente
+                </option>
+                <option value="En renovación">
+                  En renovación
+                </option>
+                <option value="Finalizado">
+                  Finalizado
+                </option>
+                <option value="Vencido">
+                  Vencido
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Fecha de firma
+              </label>
+
+              <input
+                type="date"
+                value={filtroFechaFirma}
+                onChange={(event) =>
+                  setFiltroFechaFirma(
+                    event.target.value,
+                  )
+                }
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Fecha de renovación
+              </label>
+
+              <input
+                type="date"
+                value={filtroFechaRenovacion}
+                onChange={(event) =>
+                  setFiltroFechaRenovacion(
+                    event.target.value,
+                  )
+                }
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+          </div>
+
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <p className="text-sm text-slate-500">
+              Mostrando{' '}
+              <span className="font-semibold text-slate-900">
+                {conveniosFiltrados.length}
+              </span>{' '}
+              de{' '}
+              <span className="font-semibold text-slate-900">
+                {convenios.length}
+              </span>{' '}
+              convenios.
+            </p>
+          </div>
+
+        </div>
+
         {/* CARGANDO */}
 
         {cargando && (
@@ -1008,7 +1274,7 @@ export default function Convenios() {
 
                 <tbody>
 
-                  {convenios.length ===
+                  {conveniosFiltrados.length ===
                   0 ? (
 
                     <tr>
@@ -1017,14 +1283,16 @@ export default function Convenios() {
                         colSpan={7}
                         className="px-4 py-12 text-center text-slate-500"
                       >
-                        No hay convenios registrados.
+                        {hayFiltrosActivos
+                          ? 'No se encontraron convenios que coincidan con los filtros seleccionados.'
+                          : 'No hay convenios registrados.'}
                       </td>
 
                     </tr>
 
                   ) : (
 
-                    convenios.map(
+                    conveniosFiltrados.map(
                       (convenio) => (
 
                         <tr
