@@ -8,17 +8,11 @@ import { useNavigate } from 'react-router-dom';
 
 import { api } from '../../services/api';
 
-type TipoEncargado =
-  | 'ASOCIACION'
-  | 'PERSONA';
-
 interface Encargado {
   id_encargado: number;
-  tipo_encargado: TipoEncargado;
-  nombre_asociacion: string | null;
+  entidad_encargada: string;
   cedula_juridica: string | null;
-  nombre_encargado: string;
-  cedula_fisica: string | null;
+  representante_legal: string;
   correo_encargado: string;
   telefono_encargado: string;
 }
@@ -26,40 +20,130 @@ interface Encargado {
 export default function Encargados() {
   const navigate = useNavigate();
 
+  // ============================================
+  // DATOS
+  // ============================================
+
   const [
     encargados,
     setEncargados,
   ] = useState<Encargado[]>([]);
 
-  const [cargando, setCargando] =
-    useState(true);
+  const [
+    cargando,
+    setCargando,
+  ] = useState(true);
 
-  const [error, setError] =
-    useState('');
+  const [
+    error,
+    setError,
+  ] = useState('');
 
-  // ============================
+  // ============================================
+  // FILTROS DE BÚSQUEDA
+  // ============================================
+
+  const [filtroEntidad, setFiltroEntidad] = useState('');
+  const [filtroCedula, setFiltroCedula] = useState('');
+  const [filtroRepresentante, setFiltroRepresentante] = useState('');
+  const [filtroCorreo, setFiltroCorreo] = useState('');
+  const [filtroTelefono, setFiltroTelefono] = useState('');
+
+  const normalizarTexto = (
+    valor: string | null | undefined,
+  ) =>
+    (valor ?? '')
+      .toLowerCase()
+      .trim();
+
+  const normalizarNumeros = (
+    valor: string | null | undefined,
+  ) =>
+    (valor ?? '').replace(/\D/g, '');
+
+  const encargadosFiltrados =
+    encargados.filter(
+      (encargado) => {
+        const coincideEntidad =
+          normalizarTexto(
+            encargado.entidad_encargada,
+          ).includes(
+            normalizarTexto(
+              filtroEntidad,
+            ),
+          );
+
+        const coincideCedula =
+          normalizarNumeros(
+            encargado.cedula_juridica,
+          ).includes(
+            normalizarNumeros(
+              filtroCedula,
+            ),
+          );
+
+        const coincideRepresentante =
+          normalizarTexto(
+            encargado.representante_legal,
+          ).includes(
+            normalizarTexto(
+              filtroRepresentante,
+            ),
+          );
+
+        const coincideCorreo =
+          normalizarTexto(
+            encargado.correo_encargado,
+          ).includes(
+            normalizarTexto(
+              filtroCorreo,
+            ),
+          );
+
+        const coincideTelefono =
+          normalizarNumeros(
+            encargado.telefono_encargado,
+          ).includes(
+            normalizarNumeros(
+              filtroTelefono,
+            ),
+          );
+
+        return (
+          coincideEntidad &&
+          coincideCedula &&
+          coincideRepresentante &&
+          coincideCorreo &&
+          coincideTelefono
+        );
+      },
+    );
+
+  const hayFiltrosActivos =
+    Boolean(
+      filtroEntidad ||
+      filtroCedula ||
+      filtroRepresentante ||
+      filtroCorreo ||
+      filtroTelefono,
+    );
+
+  const limpiarFiltros = () => {
+    setFiltroEntidad('');
+    setFiltroCedula('');
+    setFiltroRepresentante('');
+    setFiltroCorreo('');
+    setFiltroTelefono('');
+  };
+
+  // ============================================
   // MODAL CREAR / EDITAR
-  // ============================
+  // ============================================
 
   const [
     modalAbierto,
     setModalAbierto,
   ] = useState(false);
-
-  const [
-    seleccionandoTipo,
-    setSeleccionandoTipo,
-  ] = useState(false);
-
-  const [
-    guardando,
-    setGuardando,
-  ] = useState(false);
-
-  const [
-    errorFormulario,
-    setErrorFormulario,
-  ] = useState('');
 
   const [
     modoEdicion,
@@ -71,9 +155,35 @@ export default function Encargados() {
     setIdEncargadoEditando,
   ] = useState<number | null>(null);
 
-  // ============================
+  const [
+    guardando,
+    setGuardando,
+  ] = useState(false);
+
+  const [
+    errorFormulario,
+    setErrorFormulario,
+  ] = useState('');
+
+  // ============================================
+  // MODAL VER INFORMACIÓN
+  // ============================================
+
+  const [
+    modalInformacionAbierto,
+    setModalInformacionAbierto,
+  ] = useState(false);
+
+  const [
+    encargadoVer,
+    setEncargadoVer,
+  ] = useState<Encargado | null>(
+    null,
+  );
+
+  // ============================================
   // MODAL ELIMINAR
-  // ============================
+  // ============================================
 
   const [
     modalEliminarAbierto,
@@ -97,24 +207,13 @@ export default function Encargados() {
     setErrorEliminar,
   ] = useState('');
 
-  // ============================
-  // TIPO
-  // ============================
-
-  const [
-    tipoEncargado,
-    setTipoEncargado,
-  ] = useState<TipoEncargado | null>(
-    null,
-  );
-
-  // ============================
+  // ============================================
   // FORMULARIO
-  // ============================
+  // ============================================
 
   const [
-    nombreAsociacion,
-    setNombreAsociacion,
+    entidadEncargada,
+    setEntidadEncargada,
   ] = useState('');
 
   const [
@@ -123,13 +222,8 @@ export default function Encargados() {
   ] = useState('');
 
   const [
-    nombreEncargado,
-    setNombreEncargado,
-  ] = useState('');
-
-  const [
-    cedulaFisica,
-    setCedulaFisica,
+    representanteLegal,
+    setRepresentanteLegal,
   ] = useState('');
 
   const [
@@ -142,22 +236,25 @@ export default function Encargados() {
     setTelefonoEncargado,
   ] = useState('');
 
-  // ============================
-  // CÉDULA JURÍDICA
-  // ============================
+  // ============================================
+  // FORMATEAR CÉDULA JURÍDICA
+  // ============================================
 
   const formatearCedulaJuridica = (
     valor: string,
   ) => {
-    const numeros = valor
-      .replace(/\D/g, '')
-      .slice(0, 10);
+    const numeros =
+      valor.replace(/\D/g, '');
 
-    if (numeros.length <= 1) {
+    if (
+      numeros.length <= 1
+    ) {
       return numeros;
     }
 
-    if (numeros.length <= 4) {
+    if (
+      numeros.length <= 4
+    ) {
       return `${numeros.slice(
         0,
         1,
@@ -176,52 +273,21 @@ export default function Encargados() {
     )}`;
   };
 
-  // ============================
-  // CÉDULA FÍSICA
-  // ============================
-
-  const formatearCedulaFisica = (
-    valor: string,
-  ) => {
-    const numeros = valor
-      .replace(/\D/g, '')
-      .slice(0, 9);
-
-    if (numeros.length <= 1) {
-      return numeros;
-    }
-
-    if (numeros.length <= 5) {
-      return `${numeros.slice(
-        0,
-        1,
-      )}-${numeros.slice(1)}`;
-    }
-
-    return `${numeros.slice(
-      0,
-      1,
-    )}-${numeros.slice(
-      1,
-      5,
-    )}-${numeros.slice(
-      5,
-      9,
-    )}`;
-  };
-
-  // ============================
-  // TELÉFONO
-  // ============================
+  // ============================================
+  // FORMATEAR TELÉFONO
+  // ============================================
 
   const formatearTelefono = (
     valor: string,
   ) => {
-    const numeros = valor
-      .replace(/\D/g, '')
-      .slice(0, 8);
+    const numeros =
+      valor
+        .replace(/\D/g, '')
+        .slice(0, 8);
 
-    if (numeros.length <= 4) {
+    if (
+      numeros.length <= 4
+    ) {
       return numeros;
     }
 
@@ -231,9 +297,9 @@ export default function Encargados() {
     )}-${numeros.slice(4)}`;
   };
 
-  // ============================
+  // ============================================
   // CARGAR ENCARGADOS
-  // ============================
+  // ============================================
 
   const cargarEncargados =
     async () => {
@@ -241,19 +307,52 @@ export default function Encargados() {
         setCargando(true);
         setError('');
 
+        const token =
+          localStorage.getItem(
+            'token',
+          );
+
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+
         const response =
           await api.get(
             '/encargados',
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            },
           );
 
         setEncargados(
           response.data,
         );
-      } catch (error) {
+      } catch (error: any) {
         console.error(
           'Error cargando encargados:',
           error,
         );
+
+        if (
+          error.response?.status ===
+          401
+        ) {
+          localStorage.removeItem(
+            'token',
+          );
+
+          localStorage.removeItem(
+            'usuario',
+          );
+
+          navigate('/login');
+
+          return;
+        }
 
         setError(
           'No se pudieron cargar los encargados.',
@@ -267,60 +366,50 @@ export default function Encargados() {
     cargarEncargados();
   }, []);
 
-  // ============================
-  // LIMPIAR
-  // ============================
+  // ============================================
+  // LIMPIAR FORMULARIO
+  // ============================================
 
   const limpiarFormulario =
     () => {
-      setTipoEncargado(null);
-      setNombreAsociacion('');
+      setEntidadEncargada('');
       setCedulaJuridica('');
-      setNombreEncargado('');
-      setCedulaFisica('');
+      setRepresentanteLegal('');
       setCorreoEncargado('');
       setTelefonoEncargado('');
       setErrorFormulario('');
     };
 
-  // ============================
-  // NUEVO
-  // ============================
+  // ============================================
+  // ABRIR NUEVO ENCARGADO
+  // ============================================
 
-  const abrirNuevo = () => {
-    limpiarFormulario();
+  const abrirModalCrear =
+    () => {
+      limpiarFormulario();
 
-    setModoEdicion(false);
-    setIdEncargadoEditando(null);
+      setModoEdicion(
+        false,
+      );
 
-    setSeleccionandoTipo(true);
-    setModalAbierto(true);
-  };
+      setIdEncargadoEditando(
+        null,
+      );
 
-  // ============================
-  // SELECCIONAR TIPO
-  // ============================
+      setModalAbierto(
+        true,
+      );
+    };
 
-  const seleccionarTipo = (
-    tipo: TipoEncargado,
-  ) => {
-    setTipoEncargado(tipo);
-    setSeleccionandoTipo(false);
-  };
+  // ============================================
+  // ABRIR EDITAR
+  // ============================================
 
-  // ============================
-  // EDITAR
-  // ============================
-
-  const abrirEditar = (
+  const abrirModalEditar = (
     encargado: Encargado,
   ) => {
-    setTipoEncargado(
-      encargado.tipo_encargado,
-    );
-
-    setNombreAsociacion(
-      encargado.nombre_asociacion ??
+    setEntidadEncargada(
+      encargado.entidad_encargada ??
         '',
     );
 
@@ -329,13 +418,8 @@ export default function Encargados() {
         '',
     );
 
-    setNombreEncargado(
-      encargado.nombre_encargado ??
-        '',
-    );
-
-    setCedulaFisica(
-      encargado.cedula_fisica ??
+    setRepresentanteLegal(
+      encargado.representante_legal ??
         '',
     );
 
@@ -349,218 +433,280 @@ export default function Encargados() {
         '',
     );
 
-    setModoEdicion(true);
+    setModoEdicion(
+      true,
+    );
 
     setIdEncargadoEditando(
       encargado.id_encargado,
     );
 
-    setSeleccionandoTipo(false);
-    setModalAbierto(true);
-    setErrorFormulario('');
+    setErrorFormulario(
+      '',
+    );
+
+    setModalAbierto(
+      true,
+    );
   };
 
-  // ============================
+  // ============================================
   // CERRAR MODAL
-  // ============================
+  // ============================================
 
-  const cerrarModal = () => {
-    if (guardando) {
-      return;
-    }
-
-    setModalAbierto(false);
-    setSeleccionandoTipo(false);
-
-    limpiarFormulario();
-
-    setModoEdicion(false);
-    setIdEncargadoEditando(null);
-  };
-
-  // ============================
-  // GUARDAR
-  // ============================
-
-  const guardarEncargado = async (
-    event: FormEvent<HTMLFormElement>,
-  ) => {
-    event.preventDefault();
-
-    if (!tipoEncargado) {
-      return;
-    }
-
-    setGuardando(true);
-    setErrorFormulario('');
-
-    try {
-      const token =
-        localStorage.getItem('token');
-
-      if (
-        tipoEncargado ===
-          'ASOCIACION' &&
-        !/^\d-\d{3}-\d{6}$/.test(
-          cedulaJuridica,
-        )
-      ) {
-        setErrorFormulario(
-          'La cédula jurídica debe tener el formato 3-002-123456.',
-        );
-
-        setGuardando(false);
-
+  const cerrarModal =
+    () => {
+      if (guardando) {
         return;
       }
 
-      if (
-        tipoEncargado ===
-          'PERSONA' &&
-        !/^\d-\d{4}-\d{4}$/.test(
-          cedulaFisica,
-        )
-      ) {
-        setErrorFormulario(
-          'La cédula física debe tener el formato 1-1234-5678.',
-        );
+      setModalAbierto(
+        false,
+      );
 
-        setGuardando(false);
+      setModoEdicion(
+        false,
+      );
 
-        return;
-      }
-
-      if (
-        !/^\d{4}-\d{4}$/.test(
-          telefonoEncargado,
-        )
-      ) {
-        setErrorFormulario(
-          'El teléfono debe tener el formato 8888-8888.',
-        );
-
-        setGuardando(false);
-
-        return;
-      }
-
-      const datosEncargado = {
-        tipo_encargado:
-          tipoEncargado,
-
-        nombre_asociacion:
-          tipoEncargado ===
-          'ASOCIACION'
-            ? nombreAsociacion
-            : undefined,
-
-        cedula_juridica:
-          tipoEncargado ===
-          'ASOCIACION'
-            ? cedulaJuridica
-            : undefined,
-
-        nombre_encargado:
-          nombreEncargado,
-
-        cedula_fisica:
-          tipoEncargado ===
-          'PERSONA'
-            ? cedulaFisica
-            : undefined,
-
-        correo_encargado:
-          correoEncargado,
-
-        telefono_encargado:
-          telefonoEncargado,
-      };
-
-      if (
-        modoEdicion &&
-        idEncargadoEditando !==
-          null
-      ) {
-        await api.patch(
-          `/encargados/${idEncargadoEditando}`,
-          datosEncargado,
-          {
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          },
-        );
-      } else {
-        await api.post(
-          '/encargados',
-          datosEncargado,
-          {
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          },
-        );
-      }
-
-      setModalAbierto(false);
+      setIdEncargadoEditando(
+        null,
+      );
 
       limpiarFormulario();
+    };
 
-      setModoEdicion(false);
-      setIdEncargadoEditando(null);
+  // ============================================
+  // GUARDAR ENCARGADO
+  // ============================================
 
-      await cargarEncargados();
-    } catch (error: any) {
-      console.error(
-        'Error guardando encargado:',
-        error,
+  const guardarEncargado =
+    async (
+      event:
+        FormEvent<HTMLFormElement>,
+    ) => {
+      event.preventDefault();
+
+      setErrorFormulario(
+        '',
       );
 
       if (
-        error.response?.status ===
-        401
+        !entidadEncargada.trim()
       ) {
-        localStorage.removeItem(
-          'token',
+        setErrorFormulario(
+          'Debe ingresar la entidad encargada.',
         );
-
-        localStorage.removeItem(
-          'usuario',
-        );
-
-        navigate('/login');
 
         return;
       }
 
-      const message =
-        error.response?.data?.message;
+      if (
+        !representanteLegal.trim()
+      ) {
+        setErrorFormulario(
+          'Debe ingresar el representante legal.',
+        );
 
-      if (Array.isArray(message)) {
+        return;
+      }
+
+      if (
+        !correoEncargado.trim()
+      ) {
         setErrorFormulario(
-          message.join(', '),
+          'Debe ingresar el correo electrónico.',
         );
-      } else if (message) {
+
+        return;
+      }
+
+      if (
+        !telefonoEncargado.trim()
+      ) {
         setErrorFormulario(
-          message,
+          'Debe ingresar el número de teléfono.',
         );
-      } else {
-        setErrorFormulario(
-          modoEdicion
-            ? 'No se pudo actualizar el encargado.'
-            : 'No se pudo registrar el encargado.',
+
+        return;
+      }
+
+      try {
+        setGuardando(true);
+
+        const token =
+          localStorage.getItem(
+            'token',
+          );
+
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+
+        const datosEncargado = {
+          entidad_encargada:
+            entidadEncargada.trim(),
+
+          cedula_juridica:
+            cedulaJuridica.trim() ||
+            null,
+
+          representante_legal:
+            representanteLegal.trim(),
+
+          correo_encargado:
+            correoEncargado
+              .trim()
+              .toLowerCase(),
+
+          telefono_encargado:
+            telefonoEncargado.trim(),
+        };
+
+        // ========================================
+        // EDITAR
+        // ========================================
+
+        if (
+          modoEdicion &&
+          idEncargadoEditando !==
+            null
+        ) {
+          await api.patch(
+            `/encargados/${idEncargadoEditando}`,
+            datosEncargado,
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            },
+          );
+        }
+
+        // ========================================
+        // CREAR
+        // ========================================
+
+        else {
+          await api.post(
+            '/encargados',
+            datosEncargado,
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            },
+          );
+        }
+
+        setModalAbierto(
+          false,
+        );
+
+        setModoEdicion(
+          false,
+        );
+
+        setIdEncargadoEditando(
+          null,
+        );
+
+        limpiarFormulario();
+
+        await cargarEncargados();
+      } catch (error: any) {
+        console.error(
+          'Error guardando encargado:',
+          error,
+        );
+
+        if (
+          error.response
+            ?.status ===
+          401
+        ) {
+          localStorage.removeItem(
+            'token',
+          );
+
+          localStorage.removeItem(
+            'usuario',
+          );
+
+          navigate(
+            '/login',
+          );
+
+          return;
+        }
+
+        const message =
+          error.response
+            ?.data
+            ?.message;
+
+        if (
+          Array.isArray(
+            message,
+          )
+        ) {
+          setErrorFormulario(
+            message.join(
+              ', ',
+            ),
+          );
+        } else if (
+          message
+        ) {
+          setErrorFormulario(
+            message,
+          );
+        } else {
+          setErrorFormulario(
+            modoEdicion
+              ? 'No se pudo actualizar el encargado.'
+              : 'No se pudo registrar el encargado.',
+          );
+        }
+      } finally {
+        setGuardando(
+          false,
         );
       }
-    } finally {
-      setGuardando(false);
-    }
+    };
+
+  // ============================================
+  // VER INFORMACIÓN
+  // ============================================
+
+  const abrirModalInformacion = (
+    encargado: Encargado,
+  ) => {
+    setEncargadoVer(
+      encargado,
+    );
+
+    setModalInformacionAbierto(
+      true,
+    );
   };
 
-  // ============================
+  const cerrarModalInformacion =
+    () => {
+      setModalInformacionAbierto(
+        false,
+      );
+
+      setEncargadoVer(
+        null,
+      );
+    };
+
+  // ============================================
   // ABRIR ELIMINAR
-  // ============================
+  // ============================================
 
   const abrirModalEliminar = (
     encargado: Encargado,
@@ -569,16 +715,18 @@ export default function Encargados() {
       encargado,
     );
 
-    setErrorEliminar('');
+    setErrorEliminar(
+      '',
+    );
 
     setModalEliminarAbierto(
       true,
     );
   };
 
-  // ============================
+  // ============================================
   // CERRAR ELIMINAR
-  // ============================
+  // ============================================
 
   const cerrarModalEliminar =
     () => {
@@ -594,27 +742,41 @@ export default function Encargados() {
         null,
       );
 
-      setErrorEliminar('');
+      setErrorEliminar(
+        '',
+      );
     };
 
-  // ============================
+  // ============================================
   // CONFIRMAR ELIMINAR
-  // ============================
+  // ============================================
 
-  const confirmarEliminarEncargado =
+  const confirmarEliminar =
     async () => {
-      if (!encargadoEliminar) {
+      if (
+        !encargadoEliminar
+      ) {
         return;
       }
 
       try {
-        setEliminando(true);
-        setErrorEliminar('');
+        setEliminando(
+          true,
+        );
+
+        setErrorEliminar(
+          '',
+        );
 
         const token =
           localStorage.getItem(
             'token',
           );
+
+        if (!token) {
+          navigate('/login');
+          return;
+        }
 
         await api.delete(
           `/encargados/${encargadoEliminar.id_encargado}`,
@@ -641,8 +803,29 @@ export default function Encargados() {
           error,
         );
 
+        if (
+          error.response
+            ?.status ===
+          401
+        ) {
+          localStorage.removeItem(
+            'token',
+          );
+
+          localStorage.removeItem(
+            'usuario',
+          );
+
+          navigate(
+            '/login',
+          );
+
+          return;
+        }
+
         const message =
-          error.response?.data
+          error.response
+            ?.data
             ?.message;
 
         if (
@@ -651,9 +834,13 @@ export default function Encargados() {
           )
         ) {
           setErrorEliminar(
-            message.join(', '),
+            message.join(
+              ', ',
+            ),
           );
-        } else if (message) {
+        } else if (
+          message
+        ) {
           setErrorEliminar(
             message,
           );
@@ -663,68 +850,37 @@ export default function Encargados() {
           );
         }
       } finally {
-        setEliminando(false);
+        setEliminando(
+          false,
+        );
       }
     };
 
-  // ============================
-  // NOMBRE
-  // ============================
+  // ============================================
+  // CERRAR SESIÓN
+  // ============================================
 
-  const obtenerNombreEncargado = (
-    encargado: Encargado,
-  ) => {
-    if (
-      encargado.tipo_encargado ===
-      'ASOCIACION'
-    ) {
-      return (
-        encargado.nombre_asociacion ||
-        encargado.nombre_encargado
+  const handleLogout =
+    () => {
+      localStorage.removeItem(
+        'token',
       );
-    }
 
-    return encargado.nombre_encargado;
-  };
-
-  // ============================
-  // IDENTIFICACIÓN
-  // ============================
-
-  const obtenerIdentificacion = (
-    encargado: Encargado,
-  ) => {
-    if (
-      encargado.tipo_encargado ===
-      'ASOCIACION'
-    ) {
-      return (
-        encargado.cedula_juridica ||
-        '-'
+      localStorage.removeItem(
+        'usuario',
       );
-    }
 
-    return (
-      encargado.cedula_fisica ||
-      '-'
-    );
-  };
-
-  // ============================
-  // LOGOUT
-  // ============================
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('usuario');
-
-    navigate('/login');
-  };
+      navigate(
+        '/login',
+      );
+    };
 
   return (
     <div className="min-h-screen bg-slate-100">
 
+      {/* ====================================== */}
       {/* HEADER */}
+      {/* ====================================== */}
 
       <header className="border-b border-slate-200 bg-white px-8 py-5">
 
@@ -737,7 +893,7 @@ export default function Encargados() {
             </h1>
 
             <p className="mt-1 text-sm text-slate-500">
-              Administración de asociaciones y personas encargadas de los parques.
+              Administración de las entidades encargadas registradas en el sistema.
             </p>
 
           </div>
@@ -758,7 +914,9 @@ export default function Encargados() {
 
             <button
               type="button"
-              onClick={handleLogout}
+              onClick={
+                handleLogout
+              }
               className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
             >
               Cerrar sesión
@@ -770,7 +928,9 @@ export default function Encargados() {
 
       </header>
 
+      {/* ====================================== */}
       {/* CONTENIDO */}
+      {/* ====================================== */}
 
       <main className="mx-auto max-w-7xl px-8 py-10">
 
@@ -783,14 +943,16 @@ export default function Encargados() {
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Consulte y administre los encargados registrados en el sistema.
+              Consulte y administre las entidades responsables de los parques.
             </p>
 
           </div>
 
           <button
             type="button"
-            onClick={abrirNuevo}
+            onClick={
+              abrirModalCrear
+            }
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
           >
             + Nuevo encargado
@@ -798,11 +960,156 @@ export default function Encargados() {
 
         </div>
 
+        {/* ====================================== */}
+        {/* FILTROS DE BÚSQUEDA */}
+        {/* ====================================== */}
+
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+            <div>
+              <h3 className="font-semibold text-slate-900">
+                Filtros de búsqueda
+              </h3>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Utilice uno o varios criterios para localizar encargados específicos.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={limpiarFiltros}
+              disabled={!hayFiltrosActivos}
+              className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Limpiar filtros
+            </button>
+
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Entidad encargada
+              </label>
+
+              <input
+                type="text"
+                value={filtroEntidad}
+                onChange={(event) =>
+                  setFiltroEntidad(
+                    event.target.value,
+                  )
+                }
+                placeholder="Buscar por entidad"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Cédula jurídica
+              </label>
+
+              <input
+                type="text"
+                value={filtroCedula}
+                onChange={(event) =>
+                  setFiltroCedula(
+                    event.target.value,
+                  )
+                }
+                placeholder="Ej: 3-002-123456"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Representante legal
+              </label>
+
+              <input
+                type="text"
+                value={filtroRepresentante}
+                onChange={(event) =>
+                  setFiltroRepresentante(
+                    event.target.value,
+                  )
+                }
+                placeholder="Buscar por representante"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Correo electrónico
+              </label>
+
+              <input
+                type="text"
+                value={filtroCorreo}
+                onChange={(event) =>
+                  setFiltroCorreo(
+                    event.target.value,
+                  )
+                }
+                placeholder="Buscar por correo"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Teléfono
+              </label>
+
+              <input
+                type="text"
+                value={filtroTelefono}
+                onChange={(event) =>
+                  setFiltroTelefono(
+                    event.target.value,
+                  )
+                }
+                placeholder="Ej: 8888-8888"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+          </div>
+
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <p className="text-sm text-slate-500">
+              Mostrando{' '}
+              <span className="font-semibold text-slate-900">
+                {encargadosFiltrados.length}
+              </span>{' '}
+              de{' '}
+              <span className="font-semibold text-slate-900">
+                {encargados.length}
+              </span>{' '}
+              encargados.
+            </p>
+          </div>
+
+        </div>
+
+        {/* CARGANDO */}
+
         {cargando && (
+
           <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">
             Cargando encargados...
           </div>
+
         )}
+
+        {/* ERROR */}
 
         {!cargando &&
           error && (
@@ -827,6 +1134,10 @@ export default function Encargados() {
 
         )}
 
+        {/* ====================================== */}
+        {/* TABLA */}
+        {/* ====================================== */}
+
         {!cargando &&
           !error && (
 
@@ -840,27 +1151,27 @@ export default function Encargados() {
 
                   <tr>
 
-                    <th className="px-4 py-3 text-left">
-                      Tipo
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
+                      Entidad encargada
                     </th>
 
-                    <th className="px-4 py-3 text-left">
-                      Nombre
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
+                      Cédula jurídica
                     </th>
 
-                    <th className="px-4 py-3 text-left">
-                      Identificación
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
+                      Representante legal
                     </th>
 
-                    <th className="px-4 py-3 text-left">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
                       Correo
                     </th>
 
-                    <th className="px-4 py-3 text-left">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
                       Teléfono
                     </th>
 
-                    <th className="px-4 py-3 text-left">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
                       Acciones
                     </th>
 
@@ -870,7 +1181,7 @@ export default function Encargados() {
 
                 <tbody>
 
-                  {encargados.length ===
+                  {encargadosFiltrados.length ===
                   0 ? (
 
                     <tr>
@@ -879,15 +1190,19 @@ export default function Encargados() {
                         colSpan={6}
                         className="px-4 py-12 text-center text-slate-500"
                       >
-                        No hay encargados registrados.
+                        {hayFiltrosActivos
+                          ? 'No se encontraron encargados que coincidan con los filtros seleccionados.'
+                          : 'No hay encargados registrados.'}
                       </td>
 
                     </tr>
 
                   ) : (
 
-                    encargados.map(
-                      (encargado) => (
+                    encargadosFiltrados.map(
+                      (
+                        encargado,
+                      ) => (
 
                         <tr
                           key={
@@ -896,42 +1211,32 @@ export default function Encargados() {
                           className="border-t border-slate-100 hover:bg-slate-50"
                         >
 
-                          <td className="px-4 py-4">
-
-                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-
-                              {encargado.tipo_encargado ===
-                              'ASOCIACION'
-                                ? 'Asociación'
-                                : 'Persona'}
-
-                            </span>
-
+                          <td className="px-4 py-4 font-medium text-slate-900">
+                            {
+                              encargado.entidad_encargada
+                            }
                           </td>
 
-                          <td className="px-4 py-4 font-medium">
-
-                            {obtenerNombreEncargado(
-                              encargado,
-                            )}
-
+                          <td className="px-4 py-4 text-slate-700">
+                            {
+                              encargado.cedula_juridica ||
+                              '—'
+                            }
                           </td>
 
-                          <td className="px-4 py-4">
-
-                            {obtenerIdentificacion(
-                              encargado,
-                            )}
-
+                          <td className="px-4 py-4 text-slate-700">
+                            {
+                              encargado.representante_legal
+                            }
                           </td>
 
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-4 text-slate-700">
                             {
                               encargado.correo_encargado
                             }
                           </td>
 
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-4 text-slate-700">
                             {
                               encargado.telefono_encargado
                             }
@@ -944,13 +1249,25 @@ export default function Encargados() {
                               <button
                                 type="button"
                                 onClick={() =>
-                                  abrirEditar(
+                                  abrirModalEditar(
                                     encargado,
                                   )
                                 }
                                 className="rounded-md bg-sky-100 px-3 py-1 text-sm font-medium text-sky-700 hover:bg-sky-200"
                               >
                                 Editar
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  abrirModalInformacion(
+                                    encargado,
+                                  )
+                                }
+                                className="rounded-md bg-violet-100 px-3 py-1 text-sm font-medium text-violet-700 hover:bg-violet-200"
+                              >
+                                Ver información
                               </button>
 
                               <button
@@ -988,371 +1305,255 @@ export default function Encargados() {
 
       </main>
 
+      {/* ====================================== */}
       {/* MODAL CREAR / EDITAR */}
+      {/* ====================================== */}
 
       {modalAbierto && (
 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
 
-          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl">
 
-            {seleccionandoTipo && (
+            {/* HEADER MODAL */}
 
-              <div className="p-8">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
 
-                <h2 className="text-center text-2xl font-bold text-slate-900">
-                  Nuevo encargado
+              <div>
+
+                <h2 className="text-xl font-bold text-slate-900">
+
+                  {modoEdicion
+                    ? 'Editar encargado'
+                    : 'Nuevo encargado'}
+
                 </h2>
 
-                <p className="mt-2 text-center text-slate-500">
-                  Seleccione el tipo de encargado que desea registrar.
+                <p className="mt-1 text-sm text-slate-500">
+
+                  {modoEdicion
+                    ? 'Modifique los datos de la entidad encargada y su representante legal.'
+                    : 'Ingrese los datos de la entidad encargada y su representante legal.'}
+
                 </p>
 
-                <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">
+              </div>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      seleccionarTipo(
-                        'ASOCIACION',
+              <button
+                type="button"
+                onClick={
+                  cerrarModal
+                }
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-600 hover:bg-slate-200"
+              >
+                ×
+              </button>
+
+            </div>
+
+            {/* FORMULARIO */}
+
+            <form
+              onSubmit={
+                guardarEncargado
+              }
+              className="p-6"
+            >
+
+              {errorFormulario && (
+
+                <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  {
+                    errorFormulario
+                  }
+                </div>
+
+              )}
+
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+
+                {/* ENTIDAD ENCARGADA */}
+
+                <div>
+
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Entidad encargada
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      entidadEncargada
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setEntidadEncargada(
+                        event.target.value,
                       )
                     }
-                    className="rounded-xl border border-slate-200 p-8 text-center transition hover:border-blue-500 hover:bg-blue-50"
-                  >
-
-                    <div className="text-4xl">
-                      🤝
-                    </div>
-
-                    <h3 className="mt-3 text-lg font-bold">
-                      Asociación
-                    </h3>
-
-                    <p className="mt-2 text-sm text-slate-500">
-                      Organización identificada mediante cédula jurídica.
-                    </p>
-
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      seleccionarTipo(
-                        'PERSONA',
-                      )
-                    }
-                    className="rounded-xl border border-slate-200 p-8 text-center transition hover:border-blue-500 hover:bg-blue-50"
-                  >
-
-                    <div className="text-4xl">
-                      👤
-                    </div>
-
-                    <h3 className="mt-3 text-lg font-bold">
-                      Persona
-                    </h3>
-
-                    <p className="mt-2 text-sm text-slate-500">
-                      Persona física encargada directamente del parque.
-                    </p>
-
-                  </button>
+                    required
+                    placeholder="Ej: Asociación de Desarrollo de Grecia"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
 
                 </div>
 
-                <div className="mt-7 flex justify-center">
+                {/* CÉDULA JURÍDICA */}
 
-                  <button
-                    type="button"
-                    onClick={cerrarModal}
-                    className="rounded-lg bg-slate-200 px-5 py-2 font-semibold text-slate-700 hover:bg-slate-300"
-                  >
-                    Cancelar
-                  </button>
+                <div>
+
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Cédula jurídica
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      cedulaJuridica
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setCedulaJuridica(
+                        formatearCedulaJuridica(
+                          event.target.value,
+                        ),
+                      )
+                    }
+                    placeholder="Ej: 3-002-123456"
+                    maxLength={12}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Digite únicamente números. Los guiones se colocan automáticamente.
+                  </p>
+
+                </div>
+
+                {/* REPRESENTANTE LEGAL */}
+
+                <div>
+
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Representante legal
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      representanteLegal
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setRepresentanteLegal(
+                        event.target.value,
+                      )
+                    }
+                    required
+                    placeholder="Ej: Juan Pérez Rodríguez"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+
+                </div>
+
+                {/* CORREO */}
+
+                <div>
+
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Correo
+                  </label>
+
+                  <input
+                    type="email"
+                    value={
+                      correoEncargado
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setCorreoEncargado(
+                        event.target.value,
+                      )
+                    }
+                    required
+                    placeholder="Ej: encargado@correo.com"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+
+                </div>
+
+                {/* TELÉFONO */}
+
+                <div>
+
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Teléfono
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      telefonoEncargado
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setTelefonoEncargado(
+                        formatearTelefono(
+                          event.target.value,
+                        ),
+                      )
+                    }
+                    required
+                    placeholder="Ej: 8888-8888"
+                    maxLength={9}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
 
                 </div>
 
               </div>
 
-            )}
+              {/* BOTONES */}
 
-            {!seleccionandoTipo &&
-              tipoEncargado && (
+              <div className="mt-7 flex justify-end gap-3 border-t border-slate-100 pt-5">
 
-              <>
+                <button
+                  type="button"
+                  onClick={
+                    cerrarModal
+                  }
+                  disabled={
+                    guardando
+                  }
+                  className="rounded-lg bg-slate-200 px-5 py-2 font-semibold text-slate-700 hover:bg-slate-300 disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
 
-                <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-
-                  <div>
-
-                    <h2 className="text-xl font-bold text-slate-900">
-
-                      {modoEdicion
-                        ? 'Editar encargado'
-                        : tipoEncargado ===
-                            'ASOCIACION'
-                          ? 'Nueva asociación'
-                          : 'Nueva persona encargada'}
-
-                    </h2>
-
-                    <p className="mt-1 text-sm text-slate-500">
-
-                      {tipoEncargado ===
-                      'ASOCIACION'
-                        ? 'Ingrese los datos de la asociación y de su encargado.'
-                        : 'Ingrese los datos de la persona encargada.'}
-
-                    </p>
-
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={cerrarModal}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-600 hover:bg-slate-200"
-                  >
-                    ×
-                  </button>
-
-                </div>
-
-                <form
-                  onSubmit={guardarEncargado}
-                  className="p-6"
+                <button
+                  type="submit"
+                  disabled={
+                    guardando
+                  }
+                  className="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                 >
 
-                  {errorFormulario && (
+                  {guardando
+                    ? 'Guardando...'
+                    : modoEdicion
+                      ? 'Guardar cambios'
+                      : 'Guardar encargado'}
 
-                    <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                      {errorFormulario}
-                    </div>
+                </button>
 
-                  )}
+              </div>
 
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-
-                    {tipoEncargado ===
-                      'ASOCIACION' && (
-                      <>
-
-                        <div>
-
-                          <label className="mb-2 block text-sm font-medium">
-                            Nombre de la asociación
-                          </label>
-
-                          <input
-                            type="text"
-                            value={
-                              nombreAsociacion
-                            }
-                            onChange={(
-                              event,
-                            ) =>
-                              setNombreAsociacion(
-                                event.target.value,
-                              )
-                            }
-                            required
-                            placeholder="Ej: Asociación de Desarrollo de Grecia"
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                          />
-
-                        </div>
-
-                        <div>
-
-                          <label className="mb-2 block text-sm font-medium">
-                            Cédula jurídica
-                          </label>
-
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={
-                              cedulaJuridica
-                            }
-                            onChange={(
-                              event,
-                            ) =>
-                              setCedulaJuridica(
-                                formatearCedulaJuridica(
-                                  event.target.value,
-                                ),
-                              )
-                            }
-                            required
-                            maxLength={12}
-                            placeholder="Ej: 3-002-123456"
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                          />
-
-                          <p className="mt-1 text-xs text-slate-500">
-                            Digite únicamente números. Los guiones se colocan automáticamente.
-                          </p>
-
-                        </div>
-
-                      </>
-                    )}
-
-                    <div>
-
-                      <label className="mb-2 block text-sm font-medium">
-
-                        {tipoEncargado ===
-                        'PERSONA'
-                          ? 'Nombre completo'
-                          : 'Nombre del encargado'}
-
-                      </label>
-
-                      <input
-                        type="text"
-                        value={
-                          nombreEncargado
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          setNombreEncargado(
-                            event.target.value,
-                          )
-                        }
-                        required
-                        placeholder="Ej: Juan Pérez Rodríguez"
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                      />
-
-                    </div>
-
-                    {tipoEncargado ===
-                      'PERSONA' && (
-
-                      <div>
-
-                        <label className="mb-2 block text-sm font-medium">
-                          Cédula física
-                        </label>
-
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={
-                            cedulaFisica
-                          }
-                          onChange={(
-                            event,
-                          ) =>
-                            setCedulaFisica(
-                              formatearCedulaFisica(
-                                event.target.value,
-                              ),
-                            )
-                          }
-                          required
-                          maxLength={11}
-                          placeholder="Ej: 1-1234-5678"
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                        />
-
-                        <p className="mt-1 text-xs text-slate-500">
-                          Digite únicamente números. Los guiones se colocan automáticamente.
-                        </p>
-
-                      </div>
-
-                    )}
-
-                    <div>
-
-                      <label className="mb-2 block text-sm font-medium">
-                        Correo
-                      </label>
-
-                      <input
-                        type="email"
-                        value={
-                          correoEncargado
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          setCorreoEncargado(
-                            event.target.value,
-                          )
-                        }
-                        required
-                        placeholder="Ej: encargado@correo.com"
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                      />
-
-                    </div>
-
-                    <div>
-
-                      <label className="mb-2 block text-sm font-medium">
-                        Teléfono
-                      </label>
-
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={
-                          telefonoEncargado
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          setTelefonoEncargado(
-                            formatearTelefono(
-                              event.target.value,
-                            ),
-                          )
-                        }
-                        required
-                        maxLength={9}
-                        placeholder="Ej: 8888-8888"
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                      />
-
-                    </div>
-
-                  </div>
-
-                  <div className="mt-7 flex justify-end gap-3 border-t border-slate-100 pt-5">
-
-                    <button
-                      type="button"
-                      onClick={cerrarModal}
-                      disabled={guardando}
-                      className="rounded-lg bg-slate-200 px-5 py-2 font-semibold text-slate-700 hover:bg-slate-300 disabled:opacity-60"
-                    >
-                      Cancelar
-                    </button>
-
-                    <button
-                      type="submit"
-                      disabled={guardando}
-                      className="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-                    >
-
-                      {guardando
-                        ? 'Guardando...'
-                        : modoEdicion
-                          ? 'Guardar cambios'
-                          : 'Guardar encargado'}
-
-                    </button>
-
-                  </div>
-
-                </form>
-
-              </>
-
-            )}
+            </form>
 
           </div>
 
@@ -1360,7 +1561,145 @@ export default function Encargados() {
 
       )}
 
+      {/* ====================================== */}
+      {/* MODAL VER INFORMACIÓN */}
+      {/* ====================================== */}
+
+      {modalInformacionAbierto &&
+        encargadoVer && (
+
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+
+              <div>
+
+                <h2 className="text-xl font-bold text-slate-900">
+                  Información del encargado
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Información completa de la entidad encargada y su representante legal.
+                </p>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  cerrarModalInformacion
+                }
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-600 hover:bg-slate-200"
+              >
+                ×
+              </button>
+
+            </div>
+
+            <div className="p-6">
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Entidad encargada
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      encargadoVer.entidad_encargada
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Cédula jurídica
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      encargadoVer.cedula_juridica ||
+                      'No registrada'
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Representante legal
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      encargadoVer.representante_legal
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Correo
+                  </p>
+
+                  <p className="mt-1 break-all font-medium text-slate-900">
+                    {
+                      encargadoVer.correo_encargado
+                    }
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-4">
+
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    Teléfono
+                  </p>
+
+                  <p className="mt-1 font-medium text-slate-900">
+                    {
+                      encargadoVer.telefono_encargado
+                    }
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div className="mt-6 flex justify-end">
+
+                <button
+                  type="button"
+                  onClick={
+                    cerrarModalInformacion
+                  }
+                  className="rounded-lg bg-slate-900 px-5 py-2 font-semibold text-white hover:bg-slate-800"
+                >
+                  Cerrar
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* ====================================== */}
       {/* MODAL ELIMINAR */}
+      {/* ====================================== */}
 
       {modalEliminarAbierto &&
         encargadoEliminar && (
@@ -1390,34 +1729,34 @@ export default function Encargados() {
                 </p>
 
                 <p className="mt-3 font-semibold text-slate-900">
-
-                  {obtenerNombreEncargado(
-                    encargadoEliminar,
-                  )}
-
+                  {
+                    encargadoEliminar.entidad_encargada
+                  }
                 </p>
 
                 <p className="mt-1 text-sm text-slate-500">
-
-                  {encargadoEliminar.tipo_encargado ===
-                  'ASOCIACION'
-                    ? 'Asociación'
-                    : 'Persona'}
-
-                  {' · '}
-
-                  {obtenerIdentificacion(
-                    encargadoEliminar,
-                  )}
-
+                  Representante legal:{' '}
+                  {
+                    encargadoEliminar.representante_legal
+                  }
                 </p>
 
               </div>
 
               {errorEliminar && (
 
-                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                  {errorEliminar}
+                <div className="mt-4 rounded-lg border border-red-300 bg-red-50 p-4">
+
+                  <p className="text-sm font-semibold text-red-800">
+                    No se puede eliminar el encargado
+                  </p>
+
+                  <p className="mt-1 text-sm text-red-700">
+                    {
+                      errorEliminar
+                    }
+                  </p>
+
                 </div>
 
               )}
@@ -1429,7 +1768,9 @@ export default function Encargados() {
                   onClick={
                     cerrarModalEliminar
                   }
-                  disabled={eliminando}
+                  disabled={
+                    eliminando
+                  }
                   className="rounded-lg bg-slate-200 px-5 py-2 font-semibold text-slate-700 hover:bg-slate-300 disabled:opacity-60"
                 >
                   Cancelar
@@ -1438,9 +1779,11 @@ export default function Encargados() {
                 <button
                   type="button"
                   onClick={
-                    confirmarEliminarEncargado
+                    confirmarEliminar
                   }
-                  disabled={eliminando}
+                  disabled={
+                    eliminando
+                  }
                   className="rounded-lg bg-red-600 px-5 py-2 font-semibold text-white hover:bg-red-700 disabled:opacity-60"
                 >
 

@@ -33,6 +33,98 @@ export default function Usuarios() {
     useState('');
 
   // ============================
+  // FILTROS DE BÚSQUEDA
+  // ============================
+
+  const [
+    filtroNombre,
+    setFiltroNombre,
+  ] = useState('');
+
+  const [
+    filtroCorreo,
+    setFiltroCorreo,
+  ] = useState('');
+
+  const [
+    filtroEstado,
+    setFiltroEstado,
+  ] = useState('');
+
+  const normalizarTexto = (
+    valor: string | null | undefined,
+  ) =>
+    (valor ?? '')
+      .toLowerCase()
+      .trim();
+
+  const obtenerEstadoUsuario = (
+    usuario: Usuario,
+  ) => {
+    if (usuario.estado) {
+      return 'activo';
+    }
+
+    if (
+      usuario.nombre_usuario === null
+    ) {
+      return 'pendiente';
+    }
+
+    return 'inactivo';
+  };
+
+  const usuariosFiltrados =
+    usuarios.filter(
+      (usuario) => {
+        const coincideNombre =
+          !filtroNombre ||
+          normalizarTexto(
+            usuario.nombre_usuario ??
+              'Pendiente de activación',
+          ).includes(
+            normalizarTexto(
+              filtroNombre,
+            ),
+          );
+
+        const coincideCorreo =
+          normalizarTexto(
+            usuario.correo,
+          ).includes(
+            normalizarTexto(
+              filtroCorreo,
+            ),
+          );
+
+        const coincideEstado =
+          !filtroEstado ||
+          obtenerEstadoUsuario(
+            usuario,
+          ) === filtroEstado;
+
+        return (
+          coincideNombre &&
+          coincideCorreo &&
+          coincideEstado
+        );
+      },
+    );
+
+  const hayFiltrosActivos =
+    Boolean(
+      filtroNombre ||
+      filtroCorreo ||
+      filtroEstado,
+    );
+
+  const limpiarFiltros = () => {
+    setFiltroNombre('');
+    setFiltroCorreo('');
+    setFiltroEstado('');
+  };
+
+  // ============================
   // MODAL INVITAR
   // ============================
 
@@ -715,6 +807,123 @@ export default function Usuarios() {
 
         </div>
 
+        {/* ============================ */}
+        {/* FILTROS DE BÚSQUEDA */}
+        {/* ============================ */}
+
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+            <div>
+              <h3 className="font-semibold text-slate-900">
+                Filtros de búsqueda
+              </h3>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Utilice uno o varios criterios para localizar usuarios específicos.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={limpiarFiltros}
+              disabled={!hayFiltrosActivos}
+              className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Limpiar filtros
+            </button>
+
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Nombre
+              </label>
+
+              <input
+                type="text"
+                value={filtroNombre}
+                onChange={(event) =>
+                  setFiltroNombre(
+                    event.target.value,
+                  )
+                }
+                placeholder="Buscar por nombre"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Correo electrónico
+              </label>
+
+              <input
+                type="text"
+                value={filtroCorreo}
+                onChange={(event) =>
+                  setFiltroCorreo(
+                    event.target.value,
+                  )
+                }
+                placeholder="Buscar por correo"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Estado
+              </label>
+
+              <select
+                value={filtroEstado}
+                onChange={(event) =>
+                  setFiltroEstado(
+                    event.target.value,
+                  )
+                }
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="">
+                  Todos los estados
+                </option>
+
+                <option value="activo">
+                  Activo
+                </option>
+
+                <option value="pendiente">
+                  Invitación pendiente
+                </option>
+
+                <option value="inactivo">
+                  Inactivo
+                </option>
+              </select>
+            </div>
+
+          </div>
+
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <p className="text-sm text-slate-500">
+              Mostrando{' '}
+              <span className="font-semibold text-slate-900">
+                {usuariosFiltrados.length}
+              </span>{' '}
+              de{' '}
+              <span className="font-semibold text-slate-900">
+                {usuarios.length}
+              </span>{' '}
+              usuarios.
+            </p>
+          </div>
+
+        </div>
+
         {/* CARGANDO */}
 
         {cargando && (
@@ -776,18 +985,20 @@ export default function Usuarios() {
 
                   <tbody>
 
-                    {usuarios.length ===
+                    {usuariosFiltrados.length ===
                     0 ? (
                       <tr>
                         <td
                           colSpan={4}
                           className="px-4 py-12 text-center text-slate-500"
                         >
-                          No hay usuarios registrados.
+                          {hayFiltrosActivos
+                            ? 'No se encontraron usuarios que coincidan con los filtros seleccionados.'
+                            : 'No hay usuarios registrados.'}
                         </td>
                       </tr>
                     ) : (
-                      usuarios.map(
+                      usuariosFiltrados.map(
                         (usuario) => (
                           <tr
                             key={
