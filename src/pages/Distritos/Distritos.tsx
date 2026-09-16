@@ -7,6 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 import { api } from '../../services/api';
+import Header from '../../components/Header';
 
 interface Distrito {
   id_distrito: number;
@@ -53,6 +54,13 @@ export default function Distritos() {
       .toLowerCase()
       .trim();
 
+  // ============================================
+  // PAGINACIÓN
+  // ============================================
+
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
+
   const distritosFiltrados =
     distritos.filter(
       (distrito) => {
@@ -79,6 +87,25 @@ export default function Distritos() {
         );
       },
     );
+
+  const totalPaginas = Math.max(1, Math.ceil(distritosFiltrados.length / registrosPorPagina));
+  const indiceInicial = (paginaActual - 1) * registrosPorPagina;
+  const indiceFinal = indiceInicial + registrosPorPagina;
+  const distritosPaginados = distritosFiltrados.slice(indiceInicial, indiceFinal);
+
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [
+    filtroNombre,
+    filtroNumero,
+    registrosPorPagina,
+  ]);
+
+  useEffect(() => {
+    if (paginaActual > totalPaginas) {
+      setPaginaActual(totalPaginas);
+    }
+  }, [paginaActual, totalPaginas]);
 
   const hayFiltrosActivos =
     Boolean(
@@ -478,65 +505,13 @@ export default function Distritos() {
       }
     };
 
-  // ============================
-  // LOGOUT
-  // ============================
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('usuario');
-
-    navigate('/login');
-  };
-
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-[#F4F7F8]">
 
-      {/* HEADER */}
-
-      <header className="border-b border-slate-200 bg-white px-8 py-5">
-
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-
-          <div>
-
-            <h1 className="text-2xl font-bold text-slate-900">
-              Gestión de Distritos
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Administración de los distritos registrados en el sistema.
-            </p>
-
-          </div>
-
-          <div className="flex gap-3">
-
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  '/dashboard',
-                )
-              }
-              className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300"
-            >
-              Volver al panel
-            </button>
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-            >
-              Cerrar sesión
-            </button>
-
-          </div>
-
-        </div>
-
-      </header>
+      <Header
+        title="Gestión de Distritos"
+        description="Administración de los distritos registrados en el sistema."
+      />
 
       {/* CONTENIDO */}
 
@@ -546,7 +521,7 @@ export default function Distritos() {
 
           <div>
 
-            <h2 className="text-xl font-semibold text-slate-900">
+            <h2 className="text-xl font-semibold text-[#16313E]">
               Distritos registrados
             </h2>
 
@@ -561,7 +536,7 @@ export default function Distritos() {
             onClick={
               abrirModalCrear
             }
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            className="rounded-lg bg-[#315F73] px-4 py-2 text-sm font-semibold text-white hover:bg-[#244C5F]"
           >
             + Nuevo distrito
           </button>
@@ -572,12 +547,12 @@ export default function Distritos() {
         {/* FILTROS DE BÚSQUEDA */}
         {/* ============================ */}
 
-        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-6 rounded-xl border border-[#D9E2E7] bg-white p-5 shadow-sm">
 
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
             <div>
-              <h3 className="font-semibold text-slate-900">
+              <h3 className="font-semibold text-[#16313E]">
                 Filtros de búsqueda
               </h3>
 
@@ -641,11 +616,11 @@ export default function Distritos() {
           <div className="mt-4 border-t border-slate-100 pt-4">
             <p className="text-sm text-slate-500">
               Mostrando{' '}
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-[#16313E]">
                 {distritosFiltrados.length}
               </span>{' '}
               de{' '}
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-[#16313E]">
                 {distritos.length}
               </span>{' '}
               distritos.
@@ -655,7 +630,7 @@ export default function Distritos() {
         </div>
 
         {cargando && (
-          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+          <div className="rounded-xl border border-[#D9E2E7] bg-white p-8 text-center text-slate-500">
             Cargando distritos...
           </div>
         )}
@@ -686,7 +661,7 @@ export default function Distritos() {
         {!cargando &&
           !error && (
 
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-[#D9E2E7] bg-white shadow-sm">
 
             <div className="overflow-x-auto">
 
@@ -732,7 +707,7 @@ export default function Distritos() {
 
                   ) : (
 
-                    distritosFiltrados.map(
+                    distritosPaginados.map(
                       (distrito) => (
 
                         <tr
@@ -797,6 +772,66 @@ export default function Distritos() {
 
               </table>
 
+              {distritosFiltrados.length > 0 && (
+                <div className="flex flex-col gap-4 border-t border-[#D9E2E7] bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                    <span>
+                      Mostrando <strong>{indiceInicial + 1}</strong> a 
+                      <strong>{Math.min(indiceFinal, distritosFiltrados.length)}</strong> de 
+                      <strong>{distritosFiltrados.length}</strong> distritos
+                    </span>
+
+                    <label className="flex items-center gap-2">
+                      <span>Registros por página:</span>
+                      <select
+                        value={registrosPorPagina}
+                        onChange={(event) => setRegistrosPorPagina(Number(event.target.value))}
+                        className="rounded-lg border border-[#D9E2E7] bg-white px-2 py-1.5 text-sm text-[#16313E] outline-none focus:border-[#315F73]"
+                      >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaginaActual((pagina) => Math.max(1, pagina - 1))}
+                      disabled={paginaActual === 1}
+                      className="rounded-lg border border-[#D9E2E7] px-3 py-2 text-sm font-medium text-[#315F73] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      ← Anterior
+                    </button>
+
+                    {Array.from({ length: totalPaginas }, (_, indice) => indice + 1).map((pagina) => (
+                      <button
+                        key={pagina}
+                        type="button"
+                        onClick={() => setPaginaActual(pagina)}
+                        className={`min-w-9 rounded-lg px-3 py-2 text-sm font-semibold ${
+                          paginaActual === pagina
+                            ? 'bg-[#315F73] text-white'
+                            : 'border border-[#D9E2E7] bg-white text-[#315F73] hover:bg-slate-50'
+                        }`}
+                      >
+                        {pagina}
+                      </button>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() => setPaginaActual((pagina) => Math.min(totalPaginas, pagina + 1))}
+                      disabled={paginaActual === totalPaginas}
+                      className="rounded-lg border border-[#D9E2E7] px-3 py-2 text-sm font-medium text-[#315F73] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Siguiente →
+                    </button>
+                  </div>
+                </div>
+              )}
+
             </div>
 
           </div>
@@ -813,11 +848,11 @@ export default function Distritos() {
 
           <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl">
 
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+            <div className="flex items-center justify-between border-b border-[#D9E2E7] px-6 py-5">
 
               <div>
 
-                <h2 className="text-xl font-bold text-slate-900">
+                <h2 className="text-xl font-bold text-[#16313E]">
 
                   {modoEdicion
                     ? 'Editar distrito'
@@ -929,7 +964,7 @@ export default function Distritos() {
                 <button
                   type="submit"
                   disabled={guardando}
-                  className="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                  className="rounded-lg bg-[#315F73] px-5 py-2 font-semibold text-white hover:bg-[#244C5F] disabled:opacity-60"
                 >
 
                   {guardando
@@ -959,9 +994,9 @@ export default function Distritos() {
 
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
 
-            <div className="border-b border-slate-200 px-6 py-5">
+            <div className="border-b border-[#D9E2E7] px-6 py-5">
 
-              <h2 className="text-xl font-bold text-slate-900">
+              <h2 className="text-xl font-bold text-[#16313E]">
                 Eliminar distrito
               </h2>
 
@@ -979,7 +1014,7 @@ export default function Distritos() {
                   ¿Está seguro de que desea eliminar este distrito?
                 </p>
 
-                <p className="mt-3 font-semibold text-slate-900">
+                <p className="mt-3 font-semibold text-[#16313E]">
                   {
                     distritoEliminar.nombre_distrito
                   }

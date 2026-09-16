@@ -7,6 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 import { api } from '../../services/api';
+import Header from '../../components/Header';
 
 interface Parque {
   id_parque: number;
@@ -153,6 +154,13 @@ export default function Declaraciones() {
     setFiltroFechaVencimiento,
   ] = useState('');
 
+  // ============================================
+  // PAGINACIÓN
+  // ============================================
+
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
+
   const declaracionesFiltradas =
     declaraciones.filter(
       (declaracion) => {
@@ -188,6 +196,27 @@ export default function Declaraciones() {
         );
       },
     );
+
+  const totalPaginas = Math.max(1, Math.ceil(declaracionesFiltradas.length / registrosPorPagina));
+  const indiceInicial = (paginaActual - 1) * registrosPorPagina;
+  const indiceFinal = indiceInicial + registrosPorPagina;
+  const declaracionesPaginadas = declaracionesFiltradas.slice(indiceInicial, indiceFinal);
+
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [
+    filtroParque,
+    filtroEstado,
+    filtroFechaDeclaracion,
+    filtroFechaVencimiento,
+    registrosPorPagina,
+  ]);
+
+  useEffect(() => {
+    if (paginaActual > totalPaginas) {
+      setPaginaActual(totalPaginas);
+    }
+  }, [paginaActual, totalPaginas]);
 
   const hayFiltrosActivos =
     Boolean(
@@ -668,6 +697,53 @@ export default function Declaraciones() {
     };
 
   // ============================
+  // CERRAR MODALES CON ESC
+  // ============================
+
+  useEffect(() => {
+    const manejarEscape = (
+      event: KeyboardEvent,
+    ) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+
+      // Cierra primero el modal que esté visible.
+      if (modalInformacionAbierto) {
+        cerrarModalInformacion();
+        return;
+      }
+
+      if (modalEliminarAbierto) {
+        cerrarModalEliminar();
+        return;
+      }
+
+      if (modalAbierto) {
+        cerrarModal();
+      }
+    };
+
+    window.addEventListener(
+      'keydown',
+      manejarEscape,
+    );
+
+    return () => {
+      window.removeEventListener(
+        'keydown',
+        manejarEscape,
+      );
+    };
+  }, [
+    modalInformacionAbierto,
+    modalEliminarAbierto,
+    modalAbierto,
+    eliminando,
+    guardando,
+  ]);
+
+  // ============================
   // CONFIRMAR ELIMINAR
   // ============================
 
@@ -759,72 +835,13 @@ export default function Declaraciones() {
     }
   };
 
-  // ============================
-  // LOGOUT
-  // ============================
-
-  const handleLogout = () => {
-    localStorage.removeItem(
-      'token',
-    );
-
-    localStorage.removeItem(
-      'usuario',
-    );
-
-    navigate('/login');
-  };
-
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-[#F4F7F8]">
 
-      {/* HEADER */}
-
-      <header className="border-b border-slate-200 bg-white px-8 py-5">
-
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-
-          <div>
-
-            <h1 className="text-2xl font-bold text-slate-900">
-              Gestión de Declaraciones
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Administración de las declaraciones asociadas a los parques.
-            </p>
-
-          </div>
-
-          <div className="flex gap-3">
-
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  '/dashboard',
-                )
-              }
-              className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300"
-            >
-              Volver al panel
-            </button>
-
-            <button
-              type="button"
-              onClick={
-                handleLogout
-              }
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-            >
-              Cerrar sesión
-            </button>
-
-          </div>
-
-        </div>
-
-      </header>
+      <Header
+        title="Gestión de Declaraciones"
+        description="Administración de las declaraciones asociadas a los parques."
+      />
 
       {/* CONTENIDO */}
 
@@ -834,7 +851,7 @@ export default function Declaraciones() {
 
           <div>
 
-            <h2 className="text-xl font-semibold text-slate-900">
+            <h2 className="text-xl font-semibold text-[#16313E]">
               Declaraciones registradas
             </h2>
 
@@ -849,7 +866,7 @@ export default function Declaraciones() {
             onClick={
               abrirModalCrear
             }
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            className="rounded-lg bg-[#315F73] px-4 py-2 text-sm font-semibold text-white hover:bg-[#244C5F]"
           >
             + Nueva declaración
           </button>
@@ -860,12 +877,12 @@ export default function Declaraciones() {
         {/* FILTROS DE BÚSQUEDA */}
         {/* ============================ */}
 
-        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-6 rounded-xl border border-[#D9E2E7] bg-white p-5 shadow-sm">
 
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
             <div>
-              <h3 className="font-semibold text-slate-900">
+              <h3 className="font-semibold text-[#16313E]">
                 Filtros de búsqueda
               </h3>
 
@@ -988,11 +1005,11 @@ export default function Declaraciones() {
           <div className="mt-4 border-t border-slate-100 pt-4">
             <p className="text-sm text-slate-500">
               Mostrando{' '}
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-[#16313E]">
                 {declaracionesFiltradas.length}
               </span>{' '}
               de{' '}
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-[#16313E]">
                 {declaraciones.length}
               </span>{' '}
               declaraciones.
@@ -1002,7 +1019,7 @@ export default function Declaraciones() {
         </div>
 
         {cargando && (
-          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+          <div className="rounded-xl border border-[#D9E2E7] bg-white p-8 text-center text-slate-500">
             Cargando declaraciones...
           </div>
         )}
@@ -1033,7 +1050,7 @@ export default function Declaraciones() {
         {!cargando &&
           !error && (
 
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-[#D9E2E7] bg-white shadow-sm">
 
             <div className="overflow-x-auto">
 
@@ -1087,7 +1104,7 @@ export default function Declaraciones() {
 
                   ) : (
 
-                    declaracionesFiltradas.map(
+                    declaracionesPaginadas.map(
                       (declaracion) => (
 
                         <tr
@@ -1099,7 +1116,7 @@ export default function Declaraciones() {
 
                           <td className="px-4 py-4">
 
-                            <p className="font-medium text-slate-900">
+                            <p className="font-medium text-[#16313E]">
                               {
                                 declaracion.parque
                                   ?.ubicacion ??
@@ -1203,6 +1220,66 @@ export default function Declaraciones() {
 
               </table>
 
+              {declaracionesFiltradas.length > 0 && (
+                <div className="flex flex-col gap-4 border-t border-[#D9E2E7] bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                    <span>
+                      Mostrando <strong>{indiceInicial + 1}</strong> a 
+                      <strong>{Math.min(indiceFinal, declaracionesFiltradas.length)}</strong> de 
+                      <strong>{declaracionesFiltradas.length}</strong> declaraciones
+                    </span>
+
+                    <label className="flex items-center gap-2">
+                      <span>Registros por página:</span>
+                      <select
+                        value={registrosPorPagina}
+                        onChange={(event) => setRegistrosPorPagina(Number(event.target.value))}
+                        className="rounded-lg border border-[#D9E2E7] bg-white px-2 py-1.5 text-sm text-[#16313E] outline-none focus:border-[#315F73]"
+                      >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaginaActual((pagina) => Math.max(1, pagina - 1))}
+                      disabled={paginaActual === 1}
+                      className="rounded-lg border border-[#D9E2E7] px-3 py-2 text-sm font-medium text-[#315F73] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      ← Anterior
+                    </button>
+
+                    {Array.from({ length: totalPaginas }, (_, indice) => indice + 1).map((pagina) => (
+                      <button
+                        key={pagina}
+                        type="button"
+                        onClick={() => setPaginaActual(pagina)}
+                        className={`min-w-9 rounded-lg px-3 py-2 text-sm font-semibold ${
+                          paginaActual === pagina
+                            ? 'bg-[#315F73] text-white'
+                            : 'border border-[#D9E2E7] bg-white text-[#315F73] hover:bg-slate-50'
+                        }`}
+                      >
+                        {pagina}
+                      </button>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() => setPaginaActual((pagina) => Math.min(totalPaginas, pagina + 1))}
+                      disabled={paginaActual === totalPaginas}
+                      className="rounded-lg border border-[#D9E2E7] px-3 py-2 text-sm font-medium text-[#315F73] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Siguiente →
+                    </button>
+                  </div>
+                </div>
+              )}
+
             </div>
 
           </div>
@@ -1216,17 +1293,23 @@ export default function Declaraciones() {
       {modalInformacionAbierto &&
         declaracionVer && (
 
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+        <div
+          onClick={cerrarModalInformacion}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+        >
 
-          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto overflow-x-hidden rounded-2xl bg-white shadow-2xl"
+          >
 
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+            <div className="flex items-center justify-between border-b border-[#D9E2E7] px-6 py-5">
 
               <div>
-                <h2 className="text-xl font-bold text-slate-900">
+                <h2 className="text-xl font-bold text-[#16313E]">
                   Información de la declaración
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 max-w-full break-words text-sm text-slate-500 [overflow-wrap:anywhere]">
                   Información completa de la declaración seleccionada.
                 </p>
               </div>
@@ -1245,39 +1328,39 @@ export default function Declaraciones() {
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 
-                <div className="rounded-lg border border-slate-200 p-4 md:col-span-2">
+                <div className="rounded-lg border border-[#D9E2E7] p-4 md:col-span-2">
                   <p className="text-xs font-semibold uppercase text-slate-500">
                     Parque
                   </p>
-                  <p className="mt-1 font-medium text-slate-900">
+                  <p className="mt-1 max-w-full break-words font-medium text-[#16313E] [overflow-wrap:anywhere]">
                     {declaracionVer.parque?.ubicacion ?? 'Parque no disponible'}
                   </p>
                   {declaracionVer.parque?.numero_finca && (
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 max-w-full break-words text-sm text-slate-500 [overflow-wrap:anywhere]">
                       Finca: {declaracionVer.parque.numero_finca}
                     </p>
                   )}
                 </div>
 
-                <div className="rounded-lg border border-slate-200 p-4">
+                <div className="min-w-0 overflow-hidden rounded-lg border border-[#D9E2E7] p-4">
                   <p className="text-xs font-semibold uppercase text-slate-500">
                     Fecha de declaración
                   </p>
-                  <p className="mt-1 font-medium text-slate-900">
+                  <p className="mt-1 max-w-full break-words font-medium text-[#16313E] [overflow-wrap:anywhere]">
                     {mostrarFecha(declaracionVer.fecha_declaracion)}
                   </p>
                 </div>
 
-                <div className="rounded-lg border border-slate-200 p-4">
+                <div className="min-w-0 overflow-hidden rounded-lg border border-[#D9E2E7] p-4">
                   <p className="text-xs font-semibold uppercase text-slate-500">
                     Fecha de vencimiento
                   </p>
-                  <p className="mt-1 font-medium text-slate-900">
+                  <p className="mt-1 max-w-full break-words font-medium text-[#16313E] [overflow-wrap:anywhere]">
                     {mostrarFecha(declaracionVer.fecha_vencimiento)}
                   </p>
                 </div>
 
-                <div className="rounded-lg border border-slate-200 p-4 md:col-span-2">
+                <div className="rounded-lg border border-[#D9E2E7] p-4 md:col-span-2">
                   <p className="text-xs font-semibold uppercase text-slate-500">
                     Estado
                   </p>
@@ -1312,15 +1395,18 @@ export default function Declaraciones() {
 
       {modalAbierto && (
 
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div
+          onClick={cerrarModal}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        >
 
           <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl">
 
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+            <div className="flex items-center justify-between border-b border-[#D9E2E7] px-6 py-5">
 
               <div>
 
-                <h2 className="text-xl font-bold text-slate-900">
+                <h2 className="text-xl font-bold text-[#16313E]">
 
                   {modoEdicion
                     ? 'Editar declaración'
@@ -1515,7 +1601,7 @@ export default function Declaraciones() {
                   disabled={
                     guardando
                   }
-                  className="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white"
+                  className="rounded-lg bg-[#315F73] px-5 py-2 font-semibold text-white"
                 >
 
                   {guardando
@@ -1541,17 +1627,23 @@ export default function Declaraciones() {
       {modalEliminarAbierto &&
         declaracionEliminar && (
 
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+        <div
+          onClick={cerrarModalEliminar}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+        >
 
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="max-h-[90vh] w-full max-w-md overflow-y-auto overflow-x-hidden rounded-2xl bg-white shadow-2xl"
+          >
 
-            <div className="border-b border-slate-200 px-6 py-5">
+            <div className="border-b border-[#D9E2E7] px-6 py-5">
 
-              <h2 className="text-xl font-bold text-slate-900">
+              <h2 className="text-xl font-bold text-[#16313E]">
                 Eliminar declaración
               </h2>
 
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 max-w-full break-words text-sm text-slate-500 [overflow-wrap:anywhere]">
                 Esta acción eliminará la declaración seleccionada.
               </p>
 
@@ -1559,13 +1651,13 @@ export default function Declaraciones() {
 
             <div className="p-6">
 
-              <div className="rounded-xl bg-red-50 p-4">
+              <div className="min-w-0 overflow-hidden rounded-xl bg-red-50 p-4">
 
-                <p className="text-sm text-red-700">
+                <p className="max-w-full break-words text-sm text-red-700 [overflow-wrap:anywhere]">
                   ¿Está seguro de que desea eliminar esta declaración?
                 </p>
 
-                <p className="mt-3 font-semibold text-slate-900">
+                <p className="mt-3 max-w-full break-words font-semibold text-[#16313E] [overflow-wrap:anywhere]">
 
                   {declaracionEliminar
                     .parque?.ubicacion ??
@@ -1573,7 +1665,7 @@ export default function Declaraciones() {
 
                 </p>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 max-w-full break-words text-sm text-slate-500 [overflow-wrap:anywhere]">
 
                   Fecha de declaración:{' '}
 
@@ -1584,7 +1676,7 @@ export default function Declaraciones() {
 
                 </p>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 max-w-full break-words text-sm text-slate-500 [overflow-wrap:anywhere]">
 
                   Vence:{' '}
 
@@ -1599,7 +1691,7 @@ export default function Declaraciones() {
 
               {errorEliminar && (
 
-                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                <div className="mt-4 min-w-0 overflow-hidden rounded-lg border border-red-200 bg-red-50 p-3 break-words text-sm text-red-700 [overflow-wrap:anywhere]">
                   {errorEliminar}
                 </div>
 

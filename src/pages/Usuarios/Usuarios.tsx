@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
   type FormEvent,
 } from 'react';
@@ -8,11 +9,19 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 import { api } from '../../services/api';
+import Header from '../../components/Header';
 
 interface Usuario {
   id_usuario: number;
   nombre_usuario: string | null;
   correo: string;
+  estado: boolean;
+}
+
+interface CambioCorreoPendiente {
+  id_usuario: number;
+  correo_nuevo: string;
+  nombre_usuario: string;
   estado: boolean;
 }
 
@@ -33,96 +42,24 @@ export default function Usuarios() {
     useState('');
 
   // ============================
-  // FILTROS DE BÚSQUEDA
+  // FILTROS
   // ============================
 
-  const [
-    filtroNombre,
-    setFiltroNombre,
-  ] = useState('');
+  const [filtroNombre, setFiltroNombre] =
+    useState('');
 
-  const [
-    filtroCorreo,
-    setFiltroCorreo,
-  ] = useState('');
+  const [filtroCorreo, setFiltroCorreo] =
+    useState('');
 
-  const [
-    filtroEstado,
-    setFiltroEstado,
-  ] = useState('');
+  const [filtroEstado, setFiltroEstado] =
+    useState<'todos' | 'activo' | 'inactivo' | 'pendiente'>('todos');
 
-  const normalizarTexto = (
-    valor: string | null | undefined,
-  ) =>
-    (valor ?? '')
-      .toLowerCase()
-      .trim();
+  // ============================
+  // PAGINACIÓN
+  // ============================
 
-  const obtenerEstadoUsuario = (
-    usuario: Usuario,
-  ) => {
-    if (usuario.estado) {
-      return 'activo';
-    }
-
-    if (
-      usuario.nombre_usuario === null
-    ) {
-      return 'pendiente';
-    }
-
-    return 'inactivo';
-  };
-
-  const usuariosFiltrados =
-    usuarios.filter(
-      (usuario) => {
-        const coincideNombre =
-          !filtroNombre ||
-          normalizarTexto(
-            usuario.nombre_usuario ??
-              'Pendiente de activación',
-          ).includes(
-            normalizarTexto(
-              filtroNombre,
-            ),
-          );
-
-        const coincideCorreo =
-          normalizarTexto(
-            usuario.correo,
-          ).includes(
-            normalizarTexto(
-              filtroCorreo,
-            ),
-          );
-
-        const coincideEstado =
-          !filtroEstado ||
-          obtenerEstadoUsuario(
-            usuario,
-          ) === filtroEstado;
-
-        return (
-          coincideNombre &&
-          coincideCorreo &&
-          coincideEstado
-        );
-      },
-    );
-
-  const hayFiltrosActivos =
-    Boolean(
-      filtroNombre ||
-      filtroCorreo ||
-      filtroEstado,
-    );
-
-  const limpiarFiltros = () => {
-    setFiltroNombre('');
-    setFiltroCorreo('');
-    setFiltroEstado('');
-  };
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
 
   // ============================
   // MODAL INVITAR
@@ -199,6 +136,42 @@ export default function Usuarios() {
   const [
     errorEditar,
     setErrorEditar,
+  ] = useState('');
+
+  // ============================
+  // VERIFICACIÓN DE CAMBIO DE CORREO
+  // ============================
+
+  const [
+    modalVerificacionAbierto,
+    setModalVerificacionAbierto,
+  ] = useState(false);
+
+  const [
+    cambioCorreoPendiente,
+    setCambioCorreoPendiente,
+  ] = useState<CambioCorreoPendiente | null>(
+    null,
+  );
+
+  const [
+    codigoVerificacion,
+    setCodigoVerificacion,
+  ] = useState('');
+
+  const [
+    verificandoCorreo,
+    setVerificandoCorreo,
+  ] = useState(false);
+
+  const [
+    reenviandoCodigo,
+    setReenviandoCodigo,
+  ] = useState(false);
+
+  const [
+    errorVerificacion,
+    setErrorVerificacion,
   ] = useState('');
 
   // ============================
@@ -317,6 +290,37 @@ export default function Usuarios() {
   useEffect(() => {
     cargarUsuarios();
   }, [cargarUsuarios]);
+
+  useEffect(() => {
+    const guardado =
+      localStorage.getItem(
+        'cambioCorreoPendienteUsuario',
+      );
+
+    if (!guardado) {
+      return;
+    }
+
+    try {
+      const pendiente =
+        JSON.parse(
+          guardado,
+        ) as CambioCorreoPendiente;
+
+      if (
+        pendiente?.id_usuario &&
+        pendiente?.correo_nuevo
+      ) {
+        setCambioCorreoPendiente(
+          pendiente,
+        );
+      }
+    } catch {
+      localStorage.removeItem(
+        'cambioCorreoPendienteUsuario',
+      );
+    }
+  }, []);
 
   // ============================
   // ABRIR INVITACIÓN
@@ -527,11 +531,29 @@ export default function Usuarios() {
 
       setErrorEditar('');
 
-      if (
-        !correoEditar.trim()
-      ) {
+      const nombreLimpio =
+        nombreUsuario
+          .trim()
+          .slice(0, 50);
+
+      const correoLimpio =
+        correoEditar
+          .trim()
+          .toLowerCase();
+
+      if (!correoLimpio) {
         setErrorEditar(
           'Debe ingresar el correo electrónico.',
+        );
+
+        return;
+      }
+
+      if (
+        nombreLimpio.length > 50
+      ) {
+        setErrorEditar(
+          'El nombre no puede superar los 50 caracteres.',
         );
 
         return;
@@ -547,16 +569,60 @@ export default function Usuarios() {
           return;
         }
 
-        await api.patch(
-          `/usuarios/${usuarioEditando.id_usuario}`,
+        const correoCambio =
+          correoLimpio !==
+          usuarioEditando.correo
+            .trim()
+            .toLowerCase();
+
+        // ========================================
+        // SI EL CORREO NO CAMBIÓ
+        // ========================================
+        if (!correoCambio) {
+          await api.patch(
+            `/usuarios/${usuarioEditando.id_usuario}`,
+            {
+              nombre_usuario:
+                nombreLimpio,
+
+              correo:
+                correoLimpio,
+
+              estado,
+            },
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            },
+          );
+
+          setModalEditarAbierto(
+            false,
+          );
+
+          setUsuarioEditando(
+            null,
+          );
+
+          await cargarUsuarios();
+
+          return;
+        }
+
+        // ========================================
+        // SI CAMBIÓ EL CORREO:
+        // SOLICITAR CÓDIGO AL NUEVO CORREO
+        // ========================================
+        await api.post(
+          `/usuarios/${usuarioEditando.id_usuario}/solicitar-cambio-correo`,
           {
             nombre_usuario:
-              nombreUsuario.trim(),
+              nombreLimpio,
 
-            correo:
-              correoEditar
-                .trim()
-                .toLowerCase(),
+            correo_nuevo:
+              correoLimpio,
 
             estado,
           },
@@ -568,6 +634,34 @@ export default function Usuarios() {
           },
         );
 
+        const pendiente:
+          CambioCorreoPendiente = {
+            id_usuario:
+              usuarioEditando.id_usuario,
+
+            correo_nuevo:
+              correoLimpio,
+
+            nombre_usuario:
+              nombreLimpio,
+
+            estado,
+          };
+
+        localStorage.setItem(
+          'cambioCorreoPendienteUsuario',
+          JSON.stringify(
+            pendiente,
+          ),
+        );
+
+        setCambioCorreoPendiente(
+          pendiente,
+        );
+
+        setCodigoVerificacion('');
+        setErrorVerificacion('');
+
         setModalEditarAbierto(
           false,
         );
@@ -576,7 +670,9 @@ export default function Usuarios() {
           null,
         );
 
-        await cargarUsuarios();
+        setModalVerificacionAbierto(
+          true,
+        );
       } catch (error: any) {
         console.error(
           'Error actualizando usuario:',
@@ -621,6 +717,182 @@ export default function Usuarios() {
         }
       } finally {
         setGuardando(false);
+      }
+    };
+
+  // ============================
+  // VERIFICAR CAMBIO DE CORREO
+  // ============================
+
+  const abrirModalVerificacion =
+    (
+      usuario?: Usuario,
+    ) => {
+      if (
+        usuario &&
+        cambioCorreoPendiente &&
+        cambioCorreoPendiente.id_usuario !==
+          usuario.id_usuario
+      ) {
+        return;
+      }
+
+      setCodigoVerificacion('');
+      setErrorVerificacion('');
+
+      setModalVerificacionAbierto(
+        true,
+      );
+    };
+
+  const cerrarModalVerificacion =
+    () => {
+      if (
+        verificandoCorreo ||
+        reenviandoCodigo
+      ) {
+        return;
+      }
+
+      setModalVerificacionAbierto(
+        false,
+      );
+
+      setCodigoVerificacion('');
+      setErrorVerificacion('');
+    };
+
+  const verificarCambioCorreo =
+    async (
+      event:
+        FormEvent<HTMLFormElement>,
+    ) => {
+      event.preventDefault();
+
+      if (!cambioCorreoPendiente) {
+        setErrorVerificacion(
+          'No hay un cambio de correo pendiente.',
+        );
+        return;
+      }
+
+      const codigo =
+        codigoVerificacion
+          .replace(/\D/g, '')
+          .slice(0, 6);
+
+      if (codigo.length !== 6) {
+        setErrorVerificacion(
+          'Ingrese el código de verificación de 6 dígitos.',
+        );
+        return;
+      }
+
+      try {
+        setVerificandoCorreo(
+          true,
+        );
+
+        setErrorVerificacion('');
+
+        const token =
+          obtenerToken();
+
+        if (!token) {
+          return;
+        }
+
+        await api.post(
+          `/usuarios/${cambioCorreoPendiente.id_usuario}/verificar-cambio-correo`,
+          {
+            codigo,
+          },
+          {
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          },
+        );
+
+        localStorage.removeItem(
+          'cambioCorreoPendienteUsuario',
+        );
+
+        setCambioCorreoPendiente(
+          null,
+        );
+
+        setCodigoVerificacion('');
+
+        setModalVerificacionAbierto(
+          false,
+        );
+
+        await cargarUsuarios();
+      } catch (error: any) {
+        const message =
+          error.response?.data
+            ?.message;
+
+        setErrorVerificacion(
+          Array.isArray(message)
+            ? message.join(', ')
+            : message ||
+                'El código no es válido o ya venció.',
+        );
+      } finally {
+        setVerificandoCorreo(
+          false,
+        );
+      }
+    };
+
+  const reenviarCodigoCambioCorreo =
+    async () => {
+      if (!cambioCorreoPendiente) {
+        return;
+      }
+
+      try {
+        setReenviandoCodigo(
+          true,
+        );
+
+        setErrorVerificacion('');
+
+        const token =
+          obtenerToken();
+
+        if (!token) {
+          return;
+        }
+
+        await api.post(
+          `/usuarios/${cambioCorreoPendiente.id_usuario}/reenviar-codigo-correo`,
+          {},
+          {
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          },
+        );
+      } catch (error: any) {
+        const message =
+          error.response?.data
+            ?.message;
+
+        setErrorVerificacion(
+          Array.isArray(message)
+            ? message.join(', ')
+            : message ||
+                'No se pudo reenviar el código.',
+        );
+      } finally {
+        setReenviandoCodigo(
+          false,
+        );
       }
     };
 
@@ -717,67 +989,140 @@ export default function Usuarios() {
     };
 
   // ============================
-  // LOGOUT
+  // CERRAR MODALES CON ESC
   // ============================
 
-  const cerrarSesion = () => {
-    localStorage.removeItem(
-      'token',
+  useEffect(() => {
+    const manejarEscape = (
+      event: KeyboardEvent,
+    ) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+
+      if (modalVerificacionAbierto) {
+        cerrarModalVerificacion();
+        return;
+      }
+
+      if (modalEliminarAbierto) {
+        cerrarModalEliminar();
+        return;
+      }
+
+      if (modalEditarAbierto) {
+        cerrarModalEditar();
+        return;
+      }
+
+      if (modalInvitarAbierto) {
+        cerrarModalInvitar();
+      }
+    };
+
+    window.addEventListener(
+      'keydown',
+      manejarEscape,
     );
 
-    localStorage.removeItem(
-      'usuario',
+    return () => {
+      window.removeEventListener(
+        'keydown',
+        manejarEscape,
+      );
+    };
+  }, [
+    modalVerificacionAbierto,
+    modalEliminarAbierto,
+    modalEditarAbierto,
+    modalInvitarAbierto,
+    verificandoCorreo,
+    reenviandoCodigo,
+    eliminando,
+    guardando,
+    enviandoInvitacion,
+  ]);
+
+  const usuariosFiltrados = usuarios.filter((usuario) => {
+    const nombre = (usuario.nombre_usuario ?? '').toLowerCase();
+    const correo = usuario.correo.toLowerCase();
+
+    const coincideNombre = nombre.includes(
+      filtroNombre.trim().toLowerCase(),
     );
 
-    navigate('/login');
+    const coincideCorreo = correo.includes(
+      filtroCorreo.trim().toLowerCase(),
+    );
+
+    let coincideEstado = true;
+
+    if (filtroEstado === 'activo') {
+      coincideEstado = usuario.estado === true;
+    } else if (filtroEstado === 'inactivo') {
+      coincideEstado =
+        usuario.estado === false &&
+        usuario.nombre_usuario !== null;
+    } else if (filtroEstado === 'pendiente') {
+      coincideEstado =
+        usuario.estado === false &&
+        usuario.nombre_usuario === null;
+    }
+
+    return (
+      coincideNombre &&
+      coincideCorreo &&
+      coincideEstado
+    );
+  });
+
+  const limpiarFiltros = () => {
+    setFiltroNombre('');
+    setFiltroCorreo('');
+    setFiltroEstado('todos');
   };
 
+  const hayFiltrosActivos =
+    filtroNombre.trim() !== '' ||
+    filtroCorreo.trim() !== '' ||
+    filtroEstado !== 'todos';
+
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(usuariosFiltrados.length / registrosPorPagina),
+  );
+
+  const usuariosPaginados = useMemo(() => {
+    const inicio = (paginaActual - 1) * registrosPorPagina;
+    return usuariosFiltrados.slice(inicio, inicio + registrosPorPagina);
+  }, [usuariosFiltrados, paginaActual, registrosPorPagina]);
+
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [filtroNombre, filtroCorreo, filtroEstado, registrosPorPagina]);
+
+  useEffect(() => {
+    if (paginaActual > totalPaginas) {
+      setPaginaActual(totalPaginas);
+    }
+  }, [paginaActual, totalPaginas]);
+
+  const inicioRegistro = usuariosFiltrados.length === 0
+    ? 0
+    : (paginaActual - 1) * registrosPorPagina + 1;
+
+  const finRegistro = Math.min(
+    paginaActual * registrosPorPagina,
+    usuariosFiltrados.length,
+  );
+
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-[#F4F7F8]">
 
-      {/* HEADER */}
-
-      <header className="border-b border-slate-200 bg-white px-8 py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              Gestión de Usuarios
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Administración de los usuarios con acceso al sistema.
-            </p>
-          </div>
-
-          <div className="flex gap-3">
-
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  '/dashboard',
-                )
-              }
-              className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300"
-            >
-              Volver al panel
-            </button>
-
-            <button
-              type="button"
-              onClick={
-                cerrarSesion
-              }
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-            >
-              Cerrar sesión
-            </button>
-
-          </div>
-
-        </div>
-      </header>
+      <Header
+        title="Gestión de Usuarios"
+        description="Administración de los usuarios con acceso al sistema."
+      />
 
       {/* CONTENIDO */}
 
@@ -786,7 +1131,7 @@ export default function Usuarios() {
         <div className="mb-6 flex items-center justify-between">
 
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">
+            <h2 className="text-xl font-semibold text-[#16313E]">
               Usuarios registrados
             </h2>
 
@@ -800,46 +1145,41 @@ export default function Usuarios() {
             onClick={
               abrirModalInvitar
             }
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            className="rounded-lg bg-[#315F73] px-4 py-2 text-sm font-semibold text-white hover:bg-[#244C5F]"
           >
             + Nuevo usuario
           </button>
 
         </div>
 
-        {/* ============================ */}
-        {/* FILTROS DE BÚSQUEDA */}
-        {/* ============================ */}
+        {/* FILTROS */}
 
-        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
+        <div className="mb-6 rounded-xl border border-[#D9E2E7] bg-white p-5 shadow-sm">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="font-semibold text-slate-900">
+              <h3 className="text-sm font-bold text-[#16313E]">
                 Filtros de búsqueda
               </h3>
 
-              <p className="mt-1 text-sm text-slate-500">
-                Utilice uno o varios criterios para localizar usuarios específicos.
+              <p className="mt-1 text-xs text-slate-500">
+                Puede combinar los filtros para encontrar usuarios específicos.
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={limpiarFiltros}
-              disabled={!hayFiltrosActivos}
-              className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Limpiar filtros
-            </button>
-
+            {hayFiltrosActivos && (
+              <button
+                type="button"
+                onClick={limpiarFiltros}
+                className="self-start rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 sm:self-auto"
+              >
+                Limpiar filtros
+              </button>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-
+          <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Nombre
               </label>
 
@@ -847,35 +1187,31 @@ export default function Usuarios() {
                 type="text"
                 value={filtroNombre}
                 onChange={(event) =>
-                  setFiltroNombre(
-                    event.target.value,
-                  )
+                  setFiltroNombre(event.target.value)
                 }
                 placeholder="Buscar por nombre"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-[#315F73] focus:ring-2 focus:ring-[#E8F0F4]"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Correo electrónico
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Correo
               </label>
 
               <input
                 type="text"
                 value={filtroCorreo}
                 onChange={(event) =>
-                  setFiltroCorreo(
-                    event.target.value,
-                  )
+                  setFiltroCorreo(event.target.value)
                 }
                 placeholder="Buscar por correo"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-[#315F73] focus:ring-2 focus:ring-[#E8F0F4]"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Estado
               </label>
 
@@ -883,51 +1219,28 @@ export default function Usuarios() {
                 value={filtroEstado}
                 onChange={(event) =>
                   setFiltroEstado(
-                    event.target.value,
+                    event.target.value as
+                      | 'todos'
+                      | 'activo'
+                      | 'inactivo'
+                      | 'pendiente',
                   )
                 }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-[#315F73] focus:ring-2 focus:ring-[#E8F0F4]"
               >
-                <option value="">
-                  Todos los estados
-                </option>
-
-                <option value="activo">
-                  Activo
-                </option>
-
-                <option value="pendiente">
-                  Invitación pendiente
-                </option>
-
-                <option value="inactivo">
-                  Inactivo
-                </option>
+                <option value="todos">Todos</option>
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
+                <option value="pendiente">Invitación pendiente</option>
               </select>
             </div>
-
           </div>
-
-          <div className="mt-4 border-t border-slate-100 pt-4">
-            <p className="text-sm text-slate-500">
-              Mostrando{' '}
-              <span className="font-semibold text-slate-900">
-                {usuariosFiltrados.length}
-              </span>{' '}
-              de{' '}
-              <span className="font-semibold text-slate-900">
-                {usuarios.length}
-              </span>{' '}
-              usuarios.
-            </p>
-          </div>
-
         </div>
 
         {/* CARGANDO */}
 
         {cargando && (
-          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+          <div className="rounded-xl border border-[#D9E2E7] bg-white p-8 text-center text-slate-500">
             Cargando usuarios...
           </div>
         )}
@@ -957,7 +1270,7 @@ export default function Usuarios() {
 
         {!cargando &&
           !error && (
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="overflow-hidden rounded-xl border border-[#D9E2E7] bg-white shadow-sm">
 
               <div className="overflow-x-auto">
 
@@ -992,13 +1305,11 @@ export default function Usuarios() {
                           colSpan={4}
                           className="px-4 py-12 text-center text-slate-500"
                         >
-                          {hayFiltrosActivos
-                            ? 'No se encontraron usuarios que coincidan con los filtros seleccionados.'
-                            : 'No hay usuarios registrados.'}
+                          No se encontraron usuarios con los filtros seleccionados.
                         </td>
                       </tr>
                     ) : (
-                      usuariosFiltrados.map(
+                      usuariosPaginados.map(
                         (usuario) => (
                           <tr
                             key={
@@ -1007,7 +1318,7 @@ export default function Usuarios() {
                             className="border-t border-slate-100 hover:bg-slate-50"
                           >
 
-                            <td className="px-4 py-4 font-medium text-slate-900">
+                            <td className="px-4 py-4 font-medium text-[#16313E]">
                               {usuario.nombre_usuario ||
                                 'Pendiente de activación'}
                             </td>
@@ -1052,6 +1363,21 @@ export default function Usuarios() {
                                   Editar
                                 </button>
 
+                                {cambioCorreoPendiente?.id_usuario ===
+                                  usuario.id_usuario && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      abrirModalVerificacion(
+                                        usuario,
+                                      )
+                                    }
+                                    className="rounded-md bg-amber-100 px-3 py-1 text-sm font-medium text-amber-700 hover:bg-amber-200"
+                                  >
+                                    Verificar correo
+                                  </button>
+                                )}
+
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -1077,6 +1403,71 @@ export default function Usuarios() {
                 </table>
 
               </div>
+
+              {usuariosFiltrados.length > 0 && (
+                <div className="flex flex-col gap-4 border-t border-[#D9E2E7] bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                    <span>
+                      Mostrando <strong>{inicioRegistro}</strong>–<strong>{finRegistro}</strong> de{' '}
+                      <strong>{usuariosFiltrados.length}</strong> usuarios
+                    </span>
+
+                    <label className="flex items-center gap-2">
+                      <span>Por página:</span>
+                      <select
+                        value={registrosPorPagina}
+                        onChange={(event) =>
+                          setRegistrosPorPagina(Number(event.target.value))
+                        }
+                        className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-[#315F73] focus:ring-2 focus:ring-[#E8F0F4]"
+                      >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaginaActual((pagina) => Math.max(1, pagina - 1))}
+                      disabled={paginaActual === 1}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Anterior
+                    </button>
+
+                    {Array.from({ length: totalPaginas }, (_, indice) => indice + 1).map(
+                      (pagina) => (
+                        <button
+                          key={pagina}
+                          type="button"
+                          onClick={() => setPaginaActual(pagina)}
+                          className={`min-w-9 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                            paginaActual === pagina
+                              ? 'bg-[#315F73] text-white'
+                              : 'border border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          {pagina}
+                        </button>
+                      ),
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPaginaActual((pagina) => Math.min(totalPaginas, pagina + 1))
+                      }
+                      disabled={paginaActual === totalPaginas}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1087,13 +1478,19 @@ export default function Usuarios() {
       {/* ============================ */}
 
       {modalInvitarAbierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div
+          onClick={cerrarModalEditar}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        >
 
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto overflow-x-hidden rounded-2xl bg-white shadow-2xl"
+          >
 
-            <div className="border-b border-slate-200 px-6 py-5">
+            <div className="border-b border-[#D9E2E7] px-6 py-5">
 
-              <h2 className="text-xl font-bold text-slate-900">
+              <h2 className="text-xl font-bold text-[#16313E]">
                 Nuevo usuario
               </h2>
 
@@ -1156,7 +1553,7 @@ export default function Usuarios() {
                   disabled={
                     enviandoInvitacion
                   }
-                  className="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                  className="rounded-lg bg-[#315F73] px-5 py-2 font-semibold text-white hover:bg-[#244C5F] disabled:opacity-60"
                 >
                   {enviandoInvitacion
                     ? 'Enviando...'
@@ -1177,7 +1574,10 @@ export default function Usuarios() {
       {/* ============================ */}
 
       {modalExitoAbierto && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+        <div
+            onClick={cerrarModalEliminar}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          >
 
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
 
@@ -1185,7 +1585,7 @@ export default function Usuarios() {
               ✓
             </div>
 
-            <h2 className="mt-4 text-center text-xl font-bold text-slate-900">
+            <h2 className="mt-4 text-center text-xl font-bold text-[#16313E]">
               Invitación enviada
             </h2>
 
@@ -1193,7 +1593,7 @@ export default function Usuarios() {
               Se envió correctamente la invitación a:
             </p>
 
-            <p className="mt-2 break-all text-center font-semibold text-slate-900">
+            <p className="mt-2 break-all text-center font-semibold text-[#16313E]">
               {correoInvitado}
             </p>
 
@@ -1208,7 +1608,7 @@ export default function Usuarios() {
                   false,
                 )
               }
-              className="mt-6 w-full rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700"
+              className="mt-6 w-full rounded-lg bg-[#315F73] px-5 py-2 font-semibold text-white hover:bg-[#244C5F]"
             >
               Aceptar
             </button>
@@ -1228,8 +1628,8 @@ export default function Usuarios() {
 
             <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
 
-              <div className="border-b border-slate-200 px-6 py-5">
-                <h2 className="text-xl font-bold text-slate-900">
+              <div className="border-b border-[#D9E2E7] px-6 py-5">
+                <h2 className="text-xl font-bold text-[#16313E]">
                   Editar usuario
                 </h2>
 
@@ -1265,15 +1665,26 @@ export default function Usuarios() {
                       }
                       onChange={(event) =>
                         setNombreUsuario(
-                          event.target.value,
+                          event.target.value.slice(
+                            0,
+                            50,
+                          ),
                         )
                       }
+                      maxLength={50}
                       disabled={
                         usuarioEditando.nombre_usuario ===
                         null
                       }
                       className="w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"
                     />
+
+                    {usuarioEditando.nombre_usuario !==
+                      null && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        Máximo 50 caracteres.
+                      </p>
+                    )}
 
                     {usuarioEditando.nombre_usuario ===
                       null && (
@@ -1360,7 +1771,7 @@ export default function Usuarios() {
                     disabled={
                       guardando
                     }
-                    className="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                    className="rounded-lg bg-[#315F73] px-5 py-2 font-semibold text-white hover:bg-[#244C5F] disabled:opacity-60"
                   >
                     {guardando
                       ? 'Guardando...'
@@ -1376,6 +1787,158 @@ export default function Usuarios() {
           </div>
         )}
 
+
+      {/* ============================ */}
+      {/* MODAL VERIFICACIÓN DE CORREO */}
+      {/* ============================ */}
+
+      {modalVerificacionAbierto &&
+        cambioCorreoPendiente && (
+
+        <div
+          onClick={
+            cerrarModalVerificacion
+          }
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
+        >
+
+          <div
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto overflow-x-hidden rounded-2xl bg-white shadow-2xl"
+          >
+
+            <div className="border-b border-[#D9E2E7] px-6 py-5">
+
+              <h2 className="text-xl font-bold text-[#16313E]">
+                Verificación del correo
+              </h2>
+
+              <p className="mt-1 max-w-full break-words text-sm text-slate-500 [overflow-wrap:anywhere]">
+                Enviamos un código de 6 dígitos a:
+              </p>
+
+              <p className="mt-2 max-w-full break-words font-semibold text-[#16313E] [overflow-wrap:anywhere]">
+                {
+                  cambioCorreoPendiente.correo_nuevo
+                }
+              </p>
+
+            </div>
+
+            <form
+              onSubmit={
+                verificarCambioCorreo
+              }
+              className="p-6"
+            >
+
+              {errorVerificacion && (
+
+                <div className="mb-5 min-w-0 overflow-hidden rounded-lg border border-red-200 bg-red-50 p-4">
+
+                  <p className="max-w-full break-words text-sm text-red-700 [overflow-wrap:anywhere]">
+                    {errorVerificacion}
+                  </p>
+
+                </div>
+
+              )}
+
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Código de verificación
+              </label>
+
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={
+                  codigoVerificacion
+                }
+                onChange={(event) =>
+                  setCodigoVerificacion(
+                    event.target.value
+                      .replace(
+                        /\D/g,
+                        '',
+                      )
+                      .slice(
+                        0,
+                        6,
+                      ),
+                  )
+                }
+                required
+                autoFocus
+                placeholder="000000"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center text-xl font-semibold tracking-[0.35em]"
+              />
+
+              <p className="mt-2 text-xs text-slate-500">
+                El cambio de correo no se aplicará hasta que el código sea verificado correctamente.
+              </p>
+
+              <div className="mt-5">
+
+                <button
+                  type="button"
+                  onClick={
+                    reenviarCodigoCambioCorreo
+                  }
+                  disabled={
+                    reenviandoCodigo ||
+                    verificandoCorreo
+                  }
+                  className="text-sm font-semibold text-[#315F73] hover:text-[#244C5F] disabled:opacity-60"
+                >
+                  {reenviandoCodigo
+                    ? 'Reenviando...'
+                    : 'Reenviar código'}
+                </button>
+
+              </div>
+
+              <div className="mt-7 flex justify-end gap-3">
+
+                <button
+                  type="button"
+                  onClick={
+                    cerrarModalVerificacion
+                  }
+                  disabled={
+                    verificandoCorreo ||
+                    reenviandoCodigo
+                  }
+                  className="rounded-lg bg-slate-200 px-5 py-2 font-semibold text-slate-700 hover:bg-slate-300 disabled:opacity-60"
+                >
+                  Cerrar
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={
+                    verificandoCorreo
+                  }
+                  className="rounded-lg bg-[#315F73] px-5 py-2 font-semibold text-white hover:bg-[#244C5F] disabled:opacity-60"
+                >
+                  {verificandoCorreo
+                    ? 'Verificando...'
+                    : 'Verificar correo'}
+                </button>
+
+              </div>
+
+            </form>
+
+          </div>
+
+        </div>
+
+      )}
+
       {/* ============================ */}
       {/* MODAL ELIMINAR */}
       {/* ============================ */}
@@ -1384,11 +1947,14 @@ export default function Usuarios() {
         usuarioEliminar && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
 
-            <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            <div
+              onClick={(event) => event.stopPropagation()}
+              className="max-h-[90vh] w-full max-w-md overflow-y-auto overflow-x-hidden rounded-2xl bg-white shadow-2xl"
+            >
 
-              <div className="border-b border-slate-200 px-6 py-5">
+              <div className="border-b border-[#D9E2E7] px-6 py-5">
 
-                <h2 className="text-xl font-bold text-slate-900">
+                <h2 className="text-xl font-bold text-[#16313E]">
                   Eliminar usuario
                 </h2>
 
@@ -1400,13 +1966,13 @@ export default function Usuarios() {
 
               <div className="p-6">
 
-                <div className="rounded-xl bg-red-50 p-4">
+                <div className="min-w-0 overflow-hidden rounded-xl bg-red-50 p-4">
 
                   <p className="text-sm text-red-700">
                     ¿Está seguro de que desea eliminar este usuario?
                   </p>
 
-                  <p className="mt-3 font-semibold text-slate-900">
+                  <p className="mt-3 max-w-full break-words font-semibold text-[#16313E] [overflow-wrap:anywhere]">
                     {usuarioEliminar.nombre_usuario ||
                       'Invitación pendiente'}
                   </p>
@@ -1420,7 +1986,7 @@ export default function Usuarios() {
                 </div>
 
                 {errorEliminar && (
-                  <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  <div className="mt-4 min-w-0 overflow-hidden rounded-lg border border-red-200 bg-red-50 p-3 break-words text-sm text-red-700 [overflow-wrap:anywhere]">
                     {errorEliminar}
                   </div>
                 )}

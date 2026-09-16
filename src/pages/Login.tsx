@@ -1,154 +1,122 @@
-import {
-  useState,
-  type FormEvent,
-} from 'react';
-
-import {
-  Lock,
-  Mail,
-  LogIn,
-} from 'lucide-react';
-
-import {
-  useNavigate,
-} from 'react-router-dom';
-
-import {
-  api,
-} from '../services/api';
-
+import { useState, type FormEvent } from 'react';
+import { Eye, EyeOff, Lock, Mail, LogIn } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../services/api';
+import logoMunicipalidad from '../assets/logo-municipalidad-grecia.webp';
 export default function Login() {
-  const navigate =
-    useNavigate();
+  const navigate = useNavigate();
 
-  const [
-    correo,
-    setCorreo,
-  ] = useState('');
+  const [correo, setCorreo] = useState('');
+  const [password, setPassword] = useState('');
+  const [mostrarPassword, setMostrarPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [cargando, setCargando] = useState(false);
 
-  const [
-    password,
-    setPassword,
-  ] = useState('');
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
 
-  const [
-    error,
-    setError,
-  ] = useState('');
+    setError('');
+    setCargando(true);
 
-  const [
-    cargando,
-    setCargando,
-  ] = useState(false);
+    try {
+      const response = await api.post('/auth/login', {
+        correo: correo.trim().toLowerCase(),
+        password,
+      });
 
-  // ============================
-  // INICIAR SESIÓN
-  // ============================
+      const { access_token, usuario } = response.data;
 
-  const handleSubmit =
-    async (
-      event:
-        FormEvent<HTMLFormElement>,
-    ) => {
-      event.preventDefault();
+      localStorage.setItem(
+        'token',
+        access_token,
+      );
 
-      setError('');
-      setCargando(true);
+      localStorage.setItem(
+        'usuario',
+        JSON.stringify(usuario),
+      );
 
-      try {
-        const response =
-          await api.post(
-            '/auth/login',
-            {
-              correo:
-                correo
-                  .trim()
-                  .toLowerCase(),
+      navigate('/dashboard', {
+        replace: true,
+      });
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message;
 
-              password,
-            },
-          );
-
-        const {
-          access_token,
-          usuario,
-        } = response.data;
-
-        // Guardar token
-        localStorage.setItem(
-          'token',
-          access_token,
+      if (message) {
+        setError(
+          Array.isArray(message)
+            ? message.join(', ')
+            : message,
         );
-
-        // Guardar información
-        // del usuario
-        localStorage.setItem(
-          'usuario',
-          JSON.stringify(
-            usuario,
-          ),
+      } else {
+        setError(
+          'No se pudo conectar con el servidor.',
         );
-
-        // Ir al dashboard
-        navigate(
-          '/dashboard',
-        );
-      } catch (error: any) {
-        if (
-          error.response?.data
-            ?.message
-        ) {
-          const message =
-            error.response.data
-              .message;
-
-          setError(
-            Array.isArray(
-              message,
-            )
-              ? message.join(', ')
-              : message,
-          );
-        } else {
-          setError(
-            'No se pudo conectar con el servidor.',
-          );
-        }
-      } finally {
-        setCargando(false);
       }
-    };
+    } finally {
+      setCargando(false);
+    }
+  };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#F4F7F8] px-4 py-10">
 
-      <div className="w-full max-w-md">
+      {/* FRANJA SUPERIOR INSTITUCIONAL */}
 
-        {/* ENCABEZADO */}
+      <div className="absolute inset-x-0 top-0 grid h-2 grid-cols-[2.2fr_1fr_.7fr]">
+        <span className="bg-[#315F73]" />
+        <span className="bg-[#18843B]" />
+        <span className="bg-[#D4112E]" />
+      </div>
 
-        <div className="mb-8 text-center">
+      {/* DECORACIÓN DE FONDO */}
 
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 text-white">
-            <Lock size={30} />
+      <div className="absolute -left-28 -top-28 h-72 w-72 rounded-full bg-[#315F73]/10" />
+
+      <div className="absolute -bottom-28 -right-20 h-72 w-72 rounded-full bg-[#18843B]/10" />
+
+      {/* CONTENIDO */}
+
+      <div className="relative w-full max-w-md">
+
+        {/* LOGO Y TÍTULO */}
+
+        <div className="mb-7 text-center">
+
+          <img
+            src={logoMunicipalidad}
+            alt="Municipalidad de Grecia - Gobierno Local"
+            className="mx-auto w-64 max-w-full object-contain"
+          />
+
+          <div className="mt-5">
+
+            <h1 className="text-2xl font-extrabold text-[#16313E]">
+              Sistema de Catastro
+            </h1>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Panel Administrativo
+            </p>
+
           </div>
-
-          <h1 className="text-3xl font-bold text-slate-900">
-            Sistema de Catastro
-          </h1>
-
-          <p className="mt-2 text-sm text-slate-500">
-            Panel Administrativo
-          </p>
 
         </div>
 
-        {/* TARJETA */}
+        {/* TARJETA LOGIN */}
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
+        <div className="rounded-2xl border border-[#D9E2E7] bg-white p-8 shadow-[0_18px_45px_rgba(22,49,62,0.10)]">
 
           <div className="mb-6">
 
-            <h2 className="text-xl font-semibold text-slate-900">
+            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[#E8F0F4] text-[#315F73]">
+              <Lock size={22} />
+            </div>
+
+            <h2 className="text-xl font-bold text-[#16313E]">
               Iniciar sesión
             </h2>
 
@@ -166,10 +134,10 @@ export default function Login() {
             </div>
           )}
 
+          {/* FORMULARIO */}
+
           <form
-            onSubmit={
-              handleSubmit
-            }
+            onSubmit={handleSubmit}
             className="space-y-5"
           >
 
@@ -177,7 +145,7 @@ export default function Login() {
 
             <div>
 
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-semibold text-[#16313E]">
                 Correo electrónico
               </label>
 
@@ -191,20 +159,14 @@ export default function Login() {
                 <input
                   type="email"
                   value={correo}
-                  onChange={(
-                    event,
-                  ) =>
-                    setCorreo(
-                      event.target.value,
-                    )
+                  onChange={(e) =>
+                    setCorreo(e.target.value)
                   }
                   placeholder="correo@ejemplo.com"
                   required
-                  disabled={
-                    cargando
-                  }
+                  disabled={cargando}
                   autoComplete="email"
-                  className="w-full rounded-lg border border-slate-300 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
+                  className="w-full rounded-lg border border-slate-300 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-[#315F73] focus:ring-2 focus:ring-[#E8F0F4] disabled:bg-slate-100"
                 />
 
               </div>
@@ -215,23 +177,19 @@ export default function Login() {
 
             <div>
 
-              <div className="mb-2 flex items-center justify-between">
+              <div className="mb-2 flex items-center justify-between gap-3">
 
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block text-sm font-semibold text-[#16313E]">
                   Contraseña
                 </label>
 
                 <button
                   type="button"
                   onClick={() =>
-                    navigate(
-                      '/olvide-password',
-                    )
+                    navigate('/olvide-password')
                   }
-                  disabled={
-                    cargando
-                  }
-                  className="text-sm font-medium text-blue-600 transition hover:text-blue-700 hover:underline disabled:opacity-60"
+                  disabled={cargando}
+                  className="text-sm font-semibold text-[#315F73] hover:text-[#244C5F] hover:underline disabled:opacity-60"
                 >
                   ¿Olvidó su contraseña?
                 </button>
@@ -246,49 +204,71 @@ export default function Login() {
                 />
 
                 <input
-                  type="password"
+                  type={
+                    mostrarPassword
+                      ? 'text'
+                      : 'password'
+                  }
                   value={password}
-                  onChange={(
-                    event,
-                  ) =>
-                    setPassword(
-                      event.target.value,
-                    )
+                  onChange={(e) =>
+                    setPassword(e.target.value)
                   }
                   placeholder="••••••••"
                   required
-                  disabled={
-                    cargando
-                  }
+                  disabled={cargando}
                   autoComplete="current-password"
-                  className="w-full rounded-lg border border-slate-300 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
+                  className="w-full rounded-lg border border-slate-300 py-3 pl-10 pr-12 text-sm outline-none transition focus:border-[#315F73] focus:ring-2 focus:ring-[#E8F0F4] disabled:bg-slate-100"
                 />
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMostrarPassword(
+                      !mostrarPassword,
+                    )
+                  }
+                  disabled={cargando}
+                  aria-label={
+                    mostrarPassword
+                      ? 'Ocultar contraseña'
+                      : 'Mostrar contraseña'
+                  }
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-[#315F73]"
+                >
+                  {mostrarPassword ? (
+                    <EyeOff size={19} />
+                  ) : (
+                    <Eye size={19} />
+                  )}
+                </button>
 
               </div>
 
             </div>
 
-            {/* BOTÓN LOGIN */}
+            {/* BOTÓN */}
 
             <button
               type="submit"
-              disabled={
-                cargando
-              }
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={cargando}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#315F73] py-3 text-sm font-bold text-white transition hover:bg-[#244C5F] disabled:cursor-not-allowed disabled:opacity-60"
             >
-
               <LogIn size={18} />
 
               {cargando
                 ? 'Iniciando sesión...'
                 : 'Iniciar sesión'}
-
             </button>
 
           </form>
 
         </div>
+
+        {/* PIE */}
+
+        <p className="mt-5 text-center text-xs text-slate-400">
+          Municipalidad de Grecia · Gobierno Local
+        </p>
 
       </div>
 

@@ -7,6 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 import { api } from '../../services/api';
+import Header from '../../components/Header';
 
 interface Encargado {
   id_encargado: number;
@@ -60,6 +61,13 @@ export default function Encargados() {
     valor: string | null | undefined,
   ) =>
     (valor ?? '').replace(/\D/g, '');
+
+  // ============================================
+  // PAGINACIÓN
+  // ============================================
+
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
 
   const encargadosFiltrados =
     encargados.filter(
@@ -118,6 +126,28 @@ export default function Encargados() {
         );
       },
     );
+
+  const totalPaginas = Math.max(1, Math.ceil(encargadosFiltrados.length / registrosPorPagina));
+  const indiceInicial = (paginaActual - 1) * registrosPorPagina;
+  const indiceFinal = indiceInicial + registrosPorPagina;
+  const encargadosPaginados = encargadosFiltrados.slice(indiceInicial, indiceFinal);
+
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [
+    filtroEntidad,
+    filtroCedula,
+    filtroRepresentante,
+    filtroCorreo,
+    filtroTelefono,
+    registrosPorPagina,
+  ]);
+
+  useEffect(() => {
+    if (paginaActual > totalPaginas) {
+      setPaginaActual(totalPaginas);
+    }
+  }, [paginaActual, totalPaginas]);
 
   const hayFiltrosActivos =
     Boolean(
@@ -244,7 +274,9 @@ export default function Encargados() {
     valor: string,
   ) => {
     const numeros =
-      valor.replace(/\D/g, '');
+      valor
+        .replace(/\D/g, '')
+        .slice(0, 10);
 
     if (
       numeros.length <= 1
@@ -528,6 +560,86 @@ export default function Encargados() {
         );
 
         return;
+      }
+
+      const entidadNormalizada =
+        normalizarTexto(
+          entidadEncargada,
+        );
+
+      const representanteNormalizado =
+        normalizarTexto(
+          representanteLegal,
+        );
+
+      const cedulaNormalizada =
+        normalizarNumeros(
+          cedulaJuridica,
+        );
+
+      const encargadoDuplicado =
+        encargados.find(
+          (encargado) =>
+            encargado.id_encargado !==
+              idEncargadoEditando &&
+            (
+              normalizarTexto(
+                encargado.entidad_encargada,
+              ) ===
+                entidadNormalizada ||
+              normalizarTexto(
+                encargado.representante_legal,
+              ) ===
+                representanteNormalizado ||
+              (
+                cedulaNormalizada !==
+                  '' &&
+                normalizarNumeros(
+                  encargado.cedula_juridica,
+                ) ===
+                  cedulaNormalizada
+              )
+            ),
+        );
+
+      if (encargadoDuplicado) {
+        if (
+          normalizarTexto(
+            encargadoDuplicado.entidad_encargada,
+          ) ===
+          entidadNormalizada
+        ) {
+          setErrorFormulario(
+            'Ya existe un encargado con la misma entidad encargada.',
+          );
+          return;
+        }
+
+        if (
+          normalizarTexto(
+            encargadoDuplicado.representante_legal,
+          ) ===
+          representanteNormalizado
+        ) {
+          setErrorFormulario(
+            'Ya existe un encargado con el mismo representante legal.',
+          );
+          return;
+        }
+
+        if (
+          cedulaNormalizada !==
+            '' &&
+          normalizarNumeros(
+            encargadoDuplicado.cedula_juridica,
+          ) ===
+            cedulaNormalizada
+        ) {
+          setErrorFormulario(
+            'Ya existe un encargado con la misma cédula jurídica.',
+          );
+          return;
+        }
       }
 
       try {
@@ -857,76 +969,60 @@ export default function Encargados() {
     };
 
   // ============================================
-  // CERRAR SESIÓN
+  // CERRAR MODALES CON ESC
   // ============================================
 
-  const handleLogout =
-    () => {
-      localStorage.removeItem(
-        'token',
-      );
+  useEffect(() => {
+    const manejarEscape = (
+      event: KeyboardEvent,
+    ) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
 
-      localStorage.removeItem(
-        'usuario',
-      );
+      if (modalInformacionAbierto) {
+        cerrarModalInformacion();
+        return;
+      }
 
-      navigate(
-        '/login',
-      );
+      if (modalEliminarAbierto) {
+        cerrarModalEliminar();
+        return;
+      }
+
+      if (modalAbierto) {
+        cerrarModal();
+      }
     };
 
+    document.addEventListener(
+      'keydown',
+      manejarEscape,
+    );
+
+    return () => {
+      document.removeEventListener(
+        'keydown',
+        manejarEscape,
+      );
+    };
+  }, [
+    modalInformacionAbierto,
+    modalEliminarAbierto,
+    modalAbierto,
+    guardando,
+    eliminando,
+  ]);
+
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-[#F4F7F8]">
 
       {/* ====================================== */}
-      {/* HEADER */}
-      {/* ====================================== */}
 
-      <header className="border-b border-slate-200 bg-white px-8 py-5">
-
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-
-          <div>
-
-            <h1 className="text-2xl font-bold text-slate-900">
-              Gestión de Encargados
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Administración de las entidades encargadas registradas en el sistema.
-            </p>
-
-          </div>
-
-          <div className="flex gap-3">
-
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  '/dashboard',
-                )
-              }
-              className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300"
-            >
-              Volver al panel
-            </button>
-
-            <button
-              type="button"
-              onClick={
-                handleLogout
-              }
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-            >
-              Cerrar sesión
-            </button>
-
-          </div>
-
-        </div>
-
-      </header>
+      <Header
+        title="Gestión de Encargados"
+        description="Administración de las entidades encargadas registradas en el sistema."
+      />
 
       {/* ====================================== */}
       {/* CONTENIDO */}
@@ -938,7 +1034,7 @@ export default function Encargados() {
 
           <div>
 
-            <h2 className="text-xl font-semibold text-slate-900">
+            <h2 className="text-xl font-semibold text-[#16313E]">
               Encargados registrados
             </h2>
 
@@ -953,7 +1049,7 @@ export default function Encargados() {
             onClick={
               abrirModalCrear
             }
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            className="rounded-lg bg-[#315F73] px-4 py-2 text-sm font-semibold text-white hover:bg-[#244C5F]"
           >
             + Nuevo encargado
           </button>
@@ -964,12 +1060,12 @@ export default function Encargados() {
         {/* FILTROS DE BÚSQUEDA */}
         {/* ====================================== */}
 
-        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-6 rounded-xl border border-[#D9E2E7] bg-white p-5 shadow-sm">
 
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
             <div>
-              <h3 className="font-semibold text-slate-900">
+              <h3 className="font-semibold text-[#16313E]">
                 Filtros de búsqueda
               </h3>
 
@@ -1086,11 +1182,11 @@ export default function Encargados() {
           <div className="mt-4 border-t border-slate-100 pt-4">
             <p className="text-sm text-slate-500">
               Mostrando{' '}
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-[#16313E]">
                 {encargadosFiltrados.length}
               </span>{' '}
               de{' '}
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-[#16313E]">
                 {encargados.length}
               </span>{' '}
               encargados.
@@ -1103,7 +1199,7 @@ export default function Encargados() {
 
         {cargando && (
 
-          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+          <div className="rounded-xl border border-[#D9E2E7] bg-white p-8 text-center text-slate-500">
             Cargando encargados...
           </div>
 
@@ -1141,7 +1237,7 @@ export default function Encargados() {
         {!cargando &&
           !error && (
 
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-[#D9E2E7] bg-white shadow-sm">
 
             <div className="overflow-x-auto">
 
@@ -1199,7 +1295,7 @@ export default function Encargados() {
 
                   ) : (
 
-                    encargadosFiltrados.map(
+                    encargadosPaginados.map(
                       (
                         encargado,
                       ) => (
@@ -1211,7 +1307,7 @@ export default function Encargados() {
                           className="border-t border-slate-100 hover:bg-slate-50"
                         >
 
-                          <td className="px-4 py-4 font-medium text-slate-900">
+                          <td className="px-4 py-4 font-medium text-[#16313E]">
                             {
                               encargado.entidad_encargada
                             }
@@ -1297,6 +1393,66 @@ export default function Encargados() {
 
               </table>
 
+              {encargadosFiltrados.length > 0 && (
+                <div className="flex flex-col gap-4 border-t border-[#D9E2E7] bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                    <span>
+                      Mostrando <strong>{indiceInicial + 1}</strong> a 
+                      <strong>{Math.min(indiceFinal, encargadosFiltrados.length)}</strong> de 
+                      <strong>{encargadosFiltrados.length}</strong> encargados
+                    </span>
+
+                    <label className="flex items-center gap-2">
+                      <span>Registros por página:</span>
+                      <select
+                        value={registrosPorPagina}
+                        onChange={(event) => setRegistrosPorPagina(Number(event.target.value))}
+                        className="rounded-lg border border-[#D9E2E7] bg-white px-2 py-1.5 text-sm text-[#16313E] outline-none focus:border-[#315F73]"
+                      >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaginaActual((pagina) => Math.max(1, pagina - 1))}
+                      disabled={paginaActual === 1}
+                      className="rounded-lg border border-[#D9E2E7] px-3 py-2 text-sm font-medium text-[#315F73] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      ← Anterior
+                    </button>
+
+                    {Array.from({ length: totalPaginas }, (_, indice) => indice + 1).map((pagina) => (
+                      <button
+                        key={pagina}
+                        type="button"
+                        onClick={() => setPaginaActual(pagina)}
+                        className={`min-w-9 rounded-lg px-3 py-2 text-sm font-semibold ${
+                          paginaActual === pagina
+                            ? 'bg-[#315F73] text-white'
+                            : 'border border-[#D9E2E7] bg-white text-[#315F73] hover:bg-slate-50'
+                        }`}
+                      >
+                        {pagina}
+                      </button>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() => setPaginaActual((pagina) => Math.min(totalPaginas, pagina + 1))}
+                      disabled={paginaActual === totalPaginas}
+                      className="rounded-lg border border-[#D9E2E7] px-3 py-2 text-sm font-medium text-[#315F73] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Siguiente →
+                    </button>
+                  </div>
+                </div>
+              )}
+
             </div>
 
           </div>
@@ -1311,17 +1467,23 @@ export default function Encargados() {
 
       {modalAbierto && (
 
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div
+          onClick={cerrarModal}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        >
 
-          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl">
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto overflow-x-hidden rounded-2xl bg-white shadow-2xl"
+          >
 
             {/* HEADER MODAL */}
 
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+            <div className="flex items-center justify-between border-b border-[#D9E2E7] px-6 py-5">
 
               <div>
 
-                <h2 className="text-xl font-bold text-slate-900">
+                <h2 className="text-xl font-bold text-[#16313E]">
 
                   {modoEdicion
                     ? 'Editar encargado'
@@ -1329,7 +1491,7 @@ export default function Encargados() {
 
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 max-w-full break-words text-sm text-slate-500 [overflow-wrap:anywhere]">
 
                   {modoEdicion
                     ? 'Modifique los datos de la entidad encargada y su representante legal.'
@@ -1393,9 +1555,14 @@ export default function Encargados() {
                       )
                     }
                     required
+                    maxLength={150}
                     placeholder="Ej: Asociación de Desarrollo de Grecia"
                     className="w-full rounded-lg border border-slate-300 px-3 py-2"
                   />
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Máximo 150 caracteres.
+                  </p>
 
                 </div>
 
@@ -1423,11 +1590,12 @@ export default function Encargados() {
                     }
                     placeholder="Ej: 3-002-123456"
                     maxLength={12}
+                    inputMode="numeric"
                     className="w-full rounded-lg border border-slate-300 px-3 py-2"
                   />
 
                   <p className="mt-1 text-xs text-slate-500">
-                    Digite únicamente números. Los guiones se colocan automáticamente.
+                    Solo números. Máximo 10 dígitos; los guiones se colocan automáticamente.
                   </p>
 
                 </div>
@@ -1453,9 +1621,14 @@ export default function Encargados() {
                       )
                     }
                     required
+                    maxLength={150}
                     placeholder="Ej: Juan Pérez Rodríguez"
                     className="w-full rounded-lg border border-slate-300 px-3 py-2"
                   />
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Máximo 150 caracteres.
+                  </p>
 
                 </div>
 
@@ -1480,9 +1653,14 @@ export default function Encargados() {
                       )
                     }
                     required
+                    maxLength={150}
                     placeholder="Ej: encargado@correo.com"
                     className="w-full rounded-lg border border-slate-300 px-3 py-2"
                   />
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Máximo 150 caracteres.
+                  </p>
 
                 </div>
 
@@ -1511,8 +1689,13 @@ export default function Encargados() {
                     required
                     placeholder="Ej: 8888-8888"
                     maxLength={9}
+                    inputMode="numeric"
                     className="w-full rounded-lg border border-slate-300 px-3 py-2"
                   />
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Solo números. Máximo 8 dígitos; el guion se coloca automáticamente.
+                  </p>
 
                 </div>
 
@@ -1540,7 +1723,7 @@ export default function Encargados() {
                   disabled={
                     guardando
                   }
-                  className="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                  className="rounded-lg bg-[#315F73] px-5 py-2 font-semibold text-white hover:bg-[#244C5F] disabled:opacity-60"
                 >
 
                   {guardando
@@ -1568,19 +1751,25 @@ export default function Encargados() {
       {modalInformacionAbierto &&
         encargadoVer && (
 
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+        <div
+          onClick={cerrarModalInformacion}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+        >
 
-          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto overflow-x-hidden rounded-2xl bg-white shadow-2xl"
+          >
 
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+            <div className="flex items-center justify-between border-b border-[#D9E2E7] px-6 py-5">
 
               <div>
 
-                <h2 className="text-xl font-bold text-slate-900">
+                <h2 className="text-xl font-bold text-[#16313E]">
                   Información del encargado
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 max-w-full break-words text-sm text-slate-500 [overflow-wrap:anywhere]">
                   Información completa de la entidad encargada y su representante legal.
                 </p>
 
@@ -1602,13 +1791,13 @@ export default function Encargados() {
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 
-                <div className="rounded-lg border border-slate-200 p-4">
+                <div className="min-w-0 overflow-hidden rounded-lg border border-[#D9E2E7] p-4">
 
                   <p className="text-xs font-semibold uppercase text-slate-500">
                     Entidad encargada
                   </p>
 
-                  <p className="mt-1 font-medium text-slate-900">
+                  <p className="mt-1 max-w-full break-words font-medium text-[#16313E] [overflow-wrap:anywhere]">
                     {
                       encargadoVer.entidad_encargada
                     }
@@ -1616,13 +1805,13 @@ export default function Encargados() {
 
                 </div>
 
-                <div className="rounded-lg border border-slate-200 p-4">
+                <div className="min-w-0 overflow-hidden rounded-lg border border-[#D9E2E7] p-4">
 
                   <p className="text-xs font-semibold uppercase text-slate-500">
                     Cédula jurídica
                   </p>
 
-                  <p className="mt-1 font-medium text-slate-900">
+                  <p className="mt-1 max-w-full break-words font-medium text-[#16313E] [overflow-wrap:anywhere]">
                     {
                       encargadoVer.cedula_juridica ||
                       'No registrada'
@@ -1631,13 +1820,13 @@ export default function Encargados() {
 
                 </div>
 
-                <div className="rounded-lg border border-slate-200 p-4">
+                <div className="min-w-0 overflow-hidden rounded-lg border border-[#D9E2E7] p-4">
 
                   <p className="text-xs font-semibold uppercase text-slate-500">
                     Representante legal
                   </p>
 
-                  <p className="mt-1 font-medium text-slate-900">
+                  <p className="mt-1 max-w-full break-words font-medium text-[#16313E] [overflow-wrap:anywhere]">
                     {
                       encargadoVer.representante_legal
                     }
@@ -1645,13 +1834,13 @@ export default function Encargados() {
 
                 </div>
 
-                <div className="rounded-lg border border-slate-200 p-4">
+                <div className="min-w-0 overflow-hidden rounded-lg border border-[#D9E2E7] p-4">
 
                   <p className="text-xs font-semibold uppercase text-slate-500">
                     Correo
                   </p>
 
-                  <p className="mt-1 break-all font-medium text-slate-900">
+                  <p className="mt-1 max-w-full break-words font-medium text-[#16313E] [overflow-wrap:anywhere]">
                     {
                       encargadoVer.correo_encargado
                     }
@@ -1659,13 +1848,13 @@ export default function Encargados() {
 
                 </div>
 
-                <div className="rounded-lg border border-slate-200 p-4">
+                <div className="min-w-0 overflow-hidden rounded-lg border border-[#D9E2E7] p-4">
 
                   <p className="text-xs font-semibold uppercase text-slate-500">
                     Teléfono
                   </p>
 
-                  <p className="mt-1 font-medium text-slate-900">
+                  <p className="mt-1 max-w-full break-words font-medium text-[#16313E] [overflow-wrap:anywhere]">
                     {
                       encargadoVer.telefono_encargado
                     }
@@ -1704,17 +1893,23 @@ export default function Encargados() {
       {modalEliminarAbierto &&
         encargadoEliminar && (
 
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+        <div
+          onClick={cerrarModalEliminar}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+        >
 
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="max-h-[90vh] w-full max-w-md overflow-y-auto overflow-x-hidden rounded-2xl bg-white shadow-2xl"
+          >
 
-            <div className="border-b border-slate-200 px-6 py-5">
+            <div className="border-b border-[#D9E2E7] px-6 py-5">
 
-              <h2 className="text-xl font-bold text-slate-900">
+              <h2 className="text-xl font-bold text-[#16313E]">
                 Eliminar encargado
               </h2>
 
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 max-w-full break-words text-sm text-slate-500 [overflow-wrap:anywhere]">
                 Esta acción eliminará el registro seleccionado.
               </p>
 
@@ -1722,19 +1917,19 @@ export default function Encargados() {
 
             <div className="p-6">
 
-              <div className="rounded-xl bg-red-50 p-4">
+              <div className="min-w-0 overflow-hidden rounded-xl bg-red-50 p-4">
 
                 <p className="text-sm text-red-700">
                   ¿Está seguro de que desea eliminar este encargado?
                 </p>
 
-                <p className="mt-3 font-semibold text-slate-900">
+                <p className="mt-3 max-w-full break-words font-semibold text-[#16313E] [overflow-wrap:anywhere]">
                   {
                     encargadoEliminar.entidad_encargada
                   }
                 </p>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 max-w-full break-words text-sm text-slate-500 [overflow-wrap:anywhere]">
                   Representante legal:{' '}
                   {
                     encargadoEliminar.representante_legal
@@ -1745,13 +1940,13 @@ export default function Encargados() {
 
               {errorEliminar && (
 
-                <div className="mt-4 rounded-lg border border-red-300 bg-red-50 p-4">
+                <div className="mt-4 min-w-0 overflow-hidden rounded-lg border border-red-300 bg-red-50 p-4">
 
                   <p className="text-sm font-semibold text-red-800">
                     No se puede eliminar el encargado
                   </p>
 
-                  <p className="mt-1 text-sm text-red-700">
+                  <p className="mt-1 max-w-full break-words text-sm text-red-700 [overflow-wrap:anywhere]">
                     {
                       errorEliminar
                     }

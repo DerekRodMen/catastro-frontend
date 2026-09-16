@@ -1,160 +1,333 @@
-import { useNavigate } from 'react-router-dom';
+import {
+  useNavigate,
+} from 'react-router-dom';
+
+import Header from '../components/Header';
 
 import './Dashboard.css';
 
+
 interface Module {
-  title: string;
-  description: string;
-  icon: string;
-  route: string;
+
+  title:
+    string;
+
+  description:
+    string;
+
+  icon:
+    string;
+
+  route:
+    string;
+
+  accent:
+    | 'blue'
+    | 'green'
+    | 'red';
 }
 
-const modules: Module[] = [
+
+const modules:
+  Module[] = [
+
   {
-    title: 'Parques',
+    title:
+      'Parques',
+
     description:
       'Gestión de los parques registrados y su información catastral.',
-    icon: '🏞️',
-    route: '/parques',
+
+    icon:
+      '🏞️',
+
+    route:
+      '/parques',
+
+    accent:
+      'green',
   },
+
+
   {
-    title: 'Encargados',
+    title:
+      'Encargados',
+
     description:
-      'Gestión de asociaciones o personas encargadas de los parques.',
-    icon: '👥',
-    route: '/encargados',
+      'Gestión de Encargados y Representante legal de los parques.',
+
+    icon:
+      '👥',
+
+    route:
+      '/encargados',
+
+    accent:
+      'blue',
   },
+
+
   {
-    title: 'Distritos',
+    title:
+      'Distritos',
+
     description:
       'Gestión de los distritos registrados en el sistema.',
-    icon: '📍',
-    route: '/distritos',
+
+    icon:
+      '📍',
+
+    route:
+      '/distritos',
+
+    accent:
+      'red',
   },
+
+
   {
-    title: 'Convenios',
+    title:
+      'Convenios',
+
     description:
       'Gestión de los convenios asociados a los parques.',
-    icon: '📄',
-    route: '/convenios',
+
+    icon:
+      '📄',
+
+    route:
+      '/convenios',
+
+    accent:
+      'blue',
   },
+
+
   {
-    title: 'Declaraciones',
+    title:
+      'Declaraciones',
+
     description:
       'Administración de las declaraciones y su vigencia.',
-    icon: '📋',
-    route: '/declaraciones',
+
+    icon:
+      '📋',
+
+    route:
+      '/declaraciones',
+
+    accent:
+      'green',
   },
+
+
   {
-    title: 'Usuarios',
+    title:
+      'Mantenimientos',
+
+    description:
+      'Registro y seguimiento de los mantenimientos realizados en los parques.',
+
+    icon:
+      '🛠️',
+
+    route:
+      '/mantenimientos',
+
+    accent:
+      'blue',
+  },
+
+
+  {
+    title:
+      'Listado de Parques',
+
+    description:
+      'Consulta, filtre y genere el listado de propiedades municipales en Excel.',
+
+    icon:
+      '📊',
+
+    route:
+      '/listado-parques',
+
+    accent:
+      'green',
+  },
+
+
+  {
+    title:
+      'Auditoría',
+
+    description:
+      'Consulta del historial de acciones realizadas por los usuarios del sistema.',
+
+    icon:
+      '🕒',
+
+    route:
+      '/auditoria',
+
+    accent:
+      'blue',
+  },
+
+
+  {
+    title:
+      'Usuarios',
+
     description:
       'Administración de los usuarios del sistema.',
-    icon: '👤',
-    route: '/usuarios',
+
+    icon:
+      '👤',
+
+    route:
+      '/usuarios',
+
+    accent:
+      'red',
   },
+
 ];
 
+
 export default function Dashboard() {
-  const navigate = useNavigate();
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('usuario');
+  const navigate =
+    useNavigate();
 
-    navigate('/login');
-  };
 
   return (
-    <div className="dashboard">
 
-      {/* HEADER */}
+    <div
+      className="dashboard"
+    >
 
-      <header className="dashboard-header">
+      <Header
+        title="Panel Administrativo"
+        description="Gestión integral de la información del Departamento de Catastro."
+        showBackButton={
+          false
+        }
+      />
 
-        <div>
-          <h1>
-            Sistema de Catastro
-          </h1>
 
-          <span>
-            Panel Administrativo
-          </span>
-        </div>
+      <main
+        className="dashboard-content"
+      >
 
-        <button
-          className="logout-button"
-          onClick={handleLogout}
+        <section
+          className="dashboard-welcome"
         >
-          Cerrar sesión
-        </button>
 
-      </header>
+          <span
+            className="dashboard-label"
+          >
+            MUNICIPALIDAD DE GRECIA
+          </span>
 
-      {/* CONTENIDO */}
-
-      <main className="dashboard-content">
-
-        <div className="dashboard-title">
 
           <h2>
-            Panel Administrativo
+            Bienvenido al Sistema de Catastro
           </h2>
 
+
           <p>
-            Seleccione un módulo para comenzar
-            a gestionar la información del sistema.
+            Seleccione un módulo para comenzar a consultar o administrar la información del sistema.
           </p>
 
-        </div>
+        </section>
 
-        {/* MÓDULOS */}
 
-        <div className="modules-grid">
+        <div
+          className="modules-grid"
+        >
 
-          {modules.map(
-            (module) => (
+          {
+            modules.map(
+              (
+                module,
+              ) => (
 
-              <div
-                key={module.title}
-                className="module-card"
-                onClick={() =>
-                  navigate(
-                    module.route,
-                  )
-                }
-              >
+                <button
+                  type="button"
+                  key={
+                    module.title
+                  }
+                  className={
+                    `module-card module-card--${module.accent}`
+                  }
+                  onClick={
+                    () =>
+                      navigate(
+                        module.route,
+                      )
+                  }
+                >
 
-                <div className="module-icon">
-                  {module.icon}
-                </div>
+                  <div
+                    className="module-card__top"
+                  >
 
-                <div className="module-info">
+                    <div
+                      className="module-icon"
+                    >
+                      {
+                        module.icon
+                      }
+                    </div>
 
-                  <h3>
-                    {module.title}
-                  </h3>
 
-                  <p>
-                    {
-                      module.description
-                    }
-                  </p>
+                    <span
+                      className="module-arrow"
+                    >
+                      →
+                    </span>
 
-                </div>
+                  </div>
 
-                <span className="module-arrow">
-                  →
-                </span>
 
-              </div>
+                  <div
+                    className="module-info"
+                  >
 
-            ),
-          )}
+                    <h3>
+                      {
+                        module.title
+                      }
+                    </h3>
+
+
+                    <p>
+                      {
+                        module.description
+                      }
+                    </p>
+
+                  </div>
+
+                </button>
+
+              ),
+            )
+          }
 
         </div>
 
       </main>
 
+
+      <footer
+        className="dashboard-footer"
+      >
+        Sistema de Catastro · Municipalidad de Grecia
+      </footer>
+
     </div>
+
   );
 }

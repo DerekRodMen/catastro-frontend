@@ -55,6 +55,39 @@ export default function ActivarCuenta() {
   ] = useState(false);
 
   // ============================
+  // VALIDACIONES CONTRASEÑA
+  // ============================
+
+  const tieneMinimoCaracteres =
+    password.length >= 8;
+
+  const tieneMayuscula =
+    /[A-Z]/.test(password);
+
+  const tieneMinuscula =
+    /[a-z]/.test(password);
+
+  const tieneNumero =
+    /\d/.test(password);
+
+  const tieneEspecial =
+    /[^A-Za-z0-9]/.test(
+      password,
+    );
+
+  const passwordValida =
+    tieneMinimoCaracteres &&
+    tieneMayuscula &&
+    tieneMinuscula &&
+    tieneNumero &&
+    tieneEspecial;
+
+  const passwordsCoinciden =
+    confirmarPassword.length > 0 &&
+    password ===
+      confirmarPassword;
+
+  // ============================
   // ACTIVAR CUENTA
   // ============================
 
@@ -75,9 +108,11 @@ export default function ActivarCuenta() {
         return;
       }
 
+      const nombreLimpio =
+        nombreUsuario.trim();
+
       if (
-        nombreUsuario.trim() ===
-        ''
+        nombreLimpio === ''
       ) {
         setError(
           'Debe ingresar su nombre.',
@@ -87,10 +122,18 @@ export default function ActivarCuenta() {
       }
 
       if (
-        password.length < 8
+        nombreLimpio.length > 50
       ) {
         setError(
-          'La contraseña debe tener al menos 8 caracteres.',
+          'El nombre no puede superar los 50 caracteres.',
+        );
+
+        return;
+      }
+
+      if (!passwordValida) {
+        setError(
+          'La contraseña debe tener mínimo 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.',
         );
 
         return;
@@ -116,7 +159,7 @@ export default function ActivarCuenta() {
             token,
 
             nombre_usuario:
-              nombreUsuario.trim(),
+              nombreLimpio,
 
             password,
           },
@@ -258,7 +301,9 @@ export default function ActivarCuenta() {
         {/* FORMULARIO */}
 
         <form
-          onSubmit={activarCuenta}
+          onSubmit={
+            activarCuenta
+          }
           className="p-8"
         >
 
@@ -272,23 +317,53 @@ export default function ActivarCuenta() {
 
           <div className="mb-5">
 
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Nombre
-            </label>
+            <div className="mb-2 flex items-center justify-between">
+
+              <label className="block text-sm font-medium text-slate-700">
+                Nombre
+              </label>
+
+              <span
+                className={`text-xs ${
+                  nombreUsuario.length >=
+                  50
+                    ? 'font-semibold text-red-600'
+                    : 'text-slate-400'
+                }`}
+              >
+                {
+                  nombreUsuario.length
+                }
+                /50
+              </span>
+
+            </div>
 
             <input
               type="text"
-              value={nombreUsuario}
-              onChange={(event) =>
+              value={
+                nombreUsuario
+              }
+              onChange={(
+                event,
+              ) =>
                 setNombreUsuario(
-                  event.target.value,
+                  event.target.value.slice(
+                    0,
+                    50,
+                  ),
                 )
               }
               required
+              maxLength={50}
               autoFocus
               placeholder="Ingrese su nombre"
               className="w-full rounded-lg border border-slate-300 px-3 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
+
+            <p className="mt-1 text-xs text-slate-500">
+              Máximo 50 caracteres.
+            </p>
 
           </div>
 
@@ -307,16 +382,98 @@ export default function ActivarCuenta() {
                   : 'password'
               }
               value={password}
-              onChange={(event) =>
+              onChange={(
+                event,
+              ) =>
                 setPassword(
-                  event.target.value,
+                  event.target
+                    .value,
                 )
               }
               required
               minLength={8}
-              placeholder="Mínimo 8 caracteres"
+              placeholder="Ingrese su contraseña"
               className="w-full rounded-lg border border-slate-300 px-3 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
+
+            {/* REQUISITOS */}
+
+            <div className="mt-3 rounded-lg bg-slate-50 p-3">
+
+              <p className="mb-2 text-xs font-semibold text-slate-600">
+                La contraseña debe contener:
+              </p>
+
+              <div className="space-y-1 text-xs">
+
+                <p
+                  className={
+                    tieneMinimoCaracteres
+                      ? 'text-green-600'
+                      : 'text-slate-500'
+                  }
+                >
+                  {tieneMinimoCaracteres
+                    ? '✓'
+                    : '○'}{' '}
+                  Mínimo 8 caracteres
+                </p>
+
+                <p
+                  className={
+                    tieneMayuscula
+                      ? 'text-green-600'
+                      : 'text-slate-500'
+                  }
+                >
+                  {tieneMayuscula
+                    ? '✓'
+                    : '○'}{' '}
+                  Una letra mayúscula
+                </p>
+
+                <p
+                  className={
+                    tieneMinuscula
+                      ? 'text-green-600'
+                      : 'text-slate-500'
+                  }
+                >
+                  {tieneMinuscula
+                    ? '✓'
+                    : '○'}{' '}
+                  Una letra minúscula
+                </p>
+
+                <p
+                  className={
+                    tieneNumero
+                      ? 'text-green-600'
+                      : 'text-slate-500'
+                  }
+                >
+                  {tieneNumero
+                    ? '✓'
+                    : '○'}{' '}
+                  Un número
+                </p>
+
+                <p
+                  className={
+                    tieneEspecial
+                      ? 'text-green-600'
+                      : 'text-slate-500'
+                  }
+                >
+                  {tieneEspecial
+                    ? '✓'
+                    : '○'}{' '}
+                  Un carácter especial
+                </p>
+
+              </div>
+
+            </div>
 
           </div>
 
@@ -337,15 +494,32 @@ export default function ActivarCuenta() {
               value={
                 confirmarPassword
               }
-              onChange={(event) =>
+              onChange={(
+                event,
+              ) =>
                 setConfirmarPassword(
-                  event.target.value,
+                  event.target
+                    .value,
                 )
               }
               required
               placeholder="Repita su contraseña"
               className="w-full rounded-lg border border-slate-300 px-3 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
+
+            {confirmarPassword && (
+              <p
+                className={`mt-2 text-xs font-medium ${
+                  passwordsCoinciden
+                    ? 'text-green-600'
+                    : 'text-red-600'
+                }`}
+              >
+                {passwordsCoinciden
+                  ? '✓ Las contraseñas coinciden.'
+                  : 'Las contraseñas no coinciden.'}
+              </p>
+            )}
 
           </div>
 
@@ -358,9 +532,12 @@ export default function ActivarCuenta() {
               checked={
                 mostrarPassword
               }
-              onChange={(event) =>
+              onChange={(
+                event,
+              ) =>
                 setMostrarPassword(
-                  event.target.checked,
+                  event.target
+                    .checked,
                 )
               }
             />
@@ -385,7 +562,13 @@ export default function ActivarCuenta() {
 
           <button
             type="submit"
-            disabled={guardando}
+            disabled={
+              guardando ||
+              !passwordValida ||
+              !passwordsCoinciden ||
+              nombreUsuario.trim()
+                .length === 0
+            }
             className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {guardando
