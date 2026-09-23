@@ -1,20 +1,35 @@
-.dashboard { min-height:100vh; background:#f4f7f8; color:#16313e; }
-.dashboard-content { max-width:1200px; margin:0 auto; padding:46px 40px 64px; }
-.dashboard-welcome { position:relative; margin-bottom:32px; padding:28px 30px; background:linear-gradient(135deg,#315f73 0%,#244c5f 72%); border-radius:18px; color:#fff; overflow:hidden; box-shadow:0 12px 28px rgba(36,76,95,.15); }
-.dashboard-welcome::after { content:''; position:absolute; width:180px; height:180px; right:-60px; top:-70px; border-radius:50%; background:rgba(24,132,59,.28); }
-.dashboard-label { display:inline-block; margin-bottom:8px; font-size:11px; font-weight:800; letter-spacing:.14em; color:#d9f1df; }
-.dashboard-welcome h2 { position:relative; margin:0; font-size:30px; font-weight:800; z-index:1; }
-.dashboard-welcome p { position:relative; max-width:690px; margin:9px 0 0; font-size:14px; line-height:1.6; color:#e7eef1; z-index:1; }
-.modules-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
-.module-card { position:relative; min-height:190px; display:flex; flex-direction:column; align-items:stretch; text-align:left; padding:23px; background:#fff; border:1px solid #d9e2e7; border-top:4px solid #315f73; border-radius:15px; cursor:pointer; box-shadow:0 4px 14px rgba(22,49,62,.04); transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
-.module-card--green { border-top-color:#18843b; }.module-card--red{border-top-color:#d4112e;}.module-card--blue{border-top-color:#315f73;}
-.module-card:hover { transform:translateY(-4px); box-shadow:0 14px 30px rgba(22,49,62,.1); }
-.module-card__top { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
-.module-icon { width:54px; height:54px; display:flex; align-items:center; justify-content:center; border-radius:13px; background:#e8f0f4; font-size:26px; }
-.module-card--green .module-icon { background:#e9f5ed; }.module-card--red .module-icon{background:#fcebed;}
-.module-info h3 { margin:0 0 7px; font-size:18px; font-weight:800; color:#16313e; }
-.module-info p { margin:0; font-size:13px; line-height:1.55; color:#64748b; }
-.module-arrow { font-size:22px; font-weight:700; color:#315f73; transition:transform .2s ease; }.module-card:hover .module-arrow{transform:translateX(4px);}
-.dashboard-footer { padding:22px 30px; text-align:center; background:#fff; border-top:1px solid #d9e2e7; color:#78909b; font-size:12px; }
-@media(max-width:900px){.modules-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.dashboard-content{padding:35px 24px 52px;}}
-@media(max-width:620px){.modules-grid{grid-template-columns:1fr;}.dashboard-content{padding:28px 18px 45px;}.dashboard-welcome{padding:24px 22px;}.dashboard-welcome h2{font-size:25px;}}
+/* Color Verde Institucional (Territorio y Parques) */
+.module-card--green {
+  border-top-color: #18843b;
+}
+.module-card--green .module-icon {
+  background: #e8f5ed;
+  color: #18843b;
+}
+.module-card--green:hover .module-arrow {
+  color: #18843b;
+}
+
+/* Color Azul Institucional (Gestión y Trámites) */
+.module-card--blue {
+  border-top-color: #315f73;
+}
+.module-card--blue .module-icon {
+  background: #e8eff3;
+  color: #315f73;
+}
+.module-card--blue:hover .module-arrow {
+  color: #315f73;
+}
+
+/* Color Rojo Institucional (Seguridad y Auditoría) */
+.module-card--red {
+  border-top-color: #d4112e;
+}
+.module-card--red .module-icon {
+  background: #fdebee;
+  color: #d4112e;
+}
+.module-card--red:hover .module-arrow {
+  color: #d4112e;
+}
