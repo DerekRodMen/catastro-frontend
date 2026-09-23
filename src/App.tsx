@@ -17,9 +17,17 @@ import Distritos from './pages/Distritos/Distritos';
 import Convenios from './pages/Convenios/Convenios';
 import Declaraciones from './pages/Declaraciones/Declaraciones';
 import Usuarios from './pages/Usuarios/Usuarios';
+import Mantenimientos from './pages/Mantenimientos/Mantenimientos';
+import ListadoParques from './pages/ListadoParques/ListadoParques';
+import Auditoria from './pages/Auditoria/Auditoria';
+
+import ProtectedRoute from './components/ProtectedRoute';
+
 
 function App() {
+
   return (
+
     <Routes>
 
       {/* INICIO */}
@@ -34,14 +42,15 @@ function App() {
         }
       />
 
-      {/* LOGIN */}
+
+      {/* RUTAS PÚBLICAS */}
 
       <Route
         path="/login"
-        element={<Login />}
+        element={
+          <Login />
+        }
       />
-
-      {/* ACTIVAR CUENTA */}
 
       <Route
         path="/activar-cuenta"
@@ -50,16 +59,12 @@ function App() {
         }
       />
 
-      {/* OLVIDÉ CONTRASEÑA */}
-
       <Route
         path="/olvide-password"
         element={
           <OlvidePassword />
         }
       />
-
-      {/* RESTABLECER CONTRASEÑA */}
 
       <Route
         path="/restablecer-password"
@@ -68,68 +73,100 @@ function App() {
         }
       />
 
-      {/* DASHBOARD */}
+
+      {/* RUTAS PROTEGIDAS */}
 
       <Route
-        path="/dashboard"
         element={
-          <Dashboard />
+          <ProtectedRoute />
         }
-      />
+      >
 
-      {/* PARQUES */}
+        <Route
+          path="/dashboard"
+          element={
+            <Dashboard />
+          }
+        />
 
-      <Route
-        path="/parques"
-        element={
-          <Parques />
-        }
-      />
 
-      {/* ENCARGADOS */}
+        <Route
+          path="/parques"
+          element={
+            <Parques />
+          }
+        />
 
-      <Route
-        path="/encargados"
-        element={
-          <Encargados />
-        }
-      />
 
-      {/* DISTRITOS */}
+        <Route
+          path="/encargados"
+          element={
+            <Encargados />
+          }
+        />
 
-      <Route
-        path="/distritos"
-        element={
-          <Distritos />
-        }
-      />
 
-      {/* CONVENIOS */}
+        <Route
+          path="/distritos"
+          element={
+            <Distritos />
+          }
+        />
 
-      <Route
-        path="/convenios"
-        element={
-          <Convenios />
-        }
-      />
 
-      {/* DECLARACIONES */}
+        <Route
+          path="/convenios"
+          element={
+            <Convenios />
+          }
+        />
 
-      <Route
-        path="/declaraciones"
-        element={
-          <Declaraciones />
-        }
-      />
 
-      {/* USUARIOS */}
+        <Route
+          path="/declaraciones"
+          element={
+            <Declaraciones />
+          }
+        />
 
-      <Route
-        path="/usuarios"
-        element={
-          <Usuarios />
-        }
-      />
+
+        <Route
+          path="/usuarios"
+          element={
+            <Usuarios />
+          }
+        />
+
+
+        <Route
+          path="/mantenimientos"
+          element={
+            <Mantenimientos />
+          }
+        />
+
+
+        {/* LISTADO DE PARQUES */}
+
+        <Route
+          path="/listado-parques"
+          element={
+            <ListadoParques />
+          }
+        />
+
+
+        {/* AUDITORÍA */}
+
+        <Route
+          path="/auditoria"
+          element={
+            <Auditoria />
+          }
+        />
+
+      </Route>
+
 
       {/* RUTA NO ENCONTRADA */}
 
@@ -144,7 +181,9 @@ function App() {
       />
 
     </Routes>
+
   );
 }
+
 
 export default App;

@@ -3,10 +3,19 @@ import {
   useState,
   type FormEvent,
 } from 'react';
-
 import { useNavigate } from 'react-router-dom';
+import {
+  Edit3,
+  Eye,
+  Plus,
+  Search,
+  Trash2,
+  FileText,
+} from 'lucide-react';
 
 import { api } from '../../services/api';
+import fondoGrecia from '../../assets/grecia-login.jpg';
+import logoMunicipalidad from '../../assets/logo-municipalidad-grecia.webp';
 
 interface Parque {
   id_parque: number;
@@ -28,95 +37,45 @@ interface Convenio {
 // FUNCIONES PARA FECHAS
 // ============================
 
-const obtenerFechaInput = (
-  fecha: string | null | undefined,
-) => {
+const obtenerFechaInput = (fecha: string | null | undefined) => {
   if (!fecha) {
     return '';
   }
-
   return fecha.substring(0, 10);
 };
 
-const mostrarFecha = (
-  fecha: string | null | undefined,
-) => {
+const mostrarFecha = (fecha: string | null | undefined) => {
   if (!fecha) {
     return '-';
   }
-
-  const fechaLimpia =
-    fecha.substring(0, 10);
-
-  const partes =
-    fechaLimpia.split('-');
-
+  const fechaLimpia = fecha.substring(0, 10);
+  const partes = fechaLimpia.split('-');
   if (partes.length !== 3) {
     return fecha;
   }
-
   return `${partes[2]}/${partes[1]}/${partes[0]}`;
 };
 
-
-const calcularFechaRenovacion = (
-  fechaFirma: string,
-  plazoAnios: string,
-) => {
-  if (
-    !fechaFirma ||
-    !plazoAnios ||
-    Number(plazoAnios) <= 0
-  ) {
+const calcularFechaRenovacion = (fechaFirma: string, plazoAnios: string) => {
+  if (!fechaFirma || !plazoAnios || Number(plazoAnios) <= 0) {
     return '';
   }
-
-  const partes =
-    fechaFirma.split('-');
-
+  const partes = fechaFirma.split('-');
   if (partes.length !== 3) {
     return '';
   }
 
-  const anio =
-    Number(partes[0]);
+  const anio = Number(partes[0]);
+  const mes = Number(partes[1]);
+  const dia = Number(partes[2]);
 
-  const mes =
-    Number(partes[1]);
+  const nuevosAnios = anio + Number(plazoAnios);
+  const ultimoDiaMes = new Date(nuevosAnios, mes, 0).getDate();
+  const diaAjustado = Math.min(dia, ultimoDiaMes);
 
-  const dia =
-    Number(partes[2]);
-
-  const nuevosAnios =
-    anio + Number(plazoAnios);
-
-  const ultimoDiaMes =
-    new Date(
-      nuevosAnios,
-      mes,
-      0,
-    ).getDate();
-
-  const diaAjustado =
-    Math.min(
-      dia,
-      ultimoDiaMes,
-    );
-
-  const anioTexto =
-    String(nuevosAnios);
-
-  const mesTexto =
-    String(mes).padStart(
-      2,
-      '0',
-    );
-
-  const diaTexto =
-    String(diaAjustado).padStart(
-      2,
-      '0',
-    );
+  const anioTexto = String(nuevosAnios);
+  const mesTexto = String(mes).padStart(2, '0');
+  const diaTexto = String(diaAjustado).padStart(2, '0');
 
   return `${anioTexto}-${mesTexto}-${diaTexto}`;
 };
@@ -132,117 +91,100 @@ export default function Convenios() {
   // DATOS
   // ============================
 
-  const [
-    convenios,
-    setConvenios,
-  ] = useState<Convenio[]>([]);
-
-  const [
-    parques,
-    setParques,
-  ] = useState<Parque[]>([]);
-
-  const [
-    cargando,
-    setCargando,
-  ] = useState(true);
-
-  const [
-    error,
-    setError,
-  ] = useState('');
+  const [convenios, setConvenios] = useState<Convenio[]>([]);
+  const [parques, setParques] = useState<Parque[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState('');
 
   // ============================
   // FILTROS DE BÚSQUEDA
   // ============================
 
-  const [
+  const [filtroNumeroConvenio, setFiltroNumeroConvenio] = useState('');
+  const [filtroParque, setFiltroParque] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('');
+  const [filtroFechaFirma, setFiltroFechaFirma] = useState('');
+  const [filtroFechaRenovacion, setFiltroFechaRenovacion] = useState('');
+
+  const normalizarTexto = (valor: string | null | undefined) =>
+    (valor ?? '').toLowerCase().trim();
+
+  const conveniosFiltrados = convenios.filter((convenio) => {
+    const coincideNumero = normalizarTexto(convenio.numero_convenio).includes(
+      normalizarTexto(filtroNumeroConvenio),
+    );
+
+    const coincideParque =
+      !filtroParque || String(convenio.parque?.id_parque ?? '') === filtroParque;
+
+    const coincideEstado =
+      !filtroEstado || convenio.estado_convenio === filtroEstado;
+
+    const coincideFechaFirma =
+      !filtroFechaFirma ||
+      obtenerFechaInput(convenio.fecha_firma) === filtroFechaFirma;
+
+    const coincideFechaRenovacion =
+      !filtroFechaRenovacion ||
+      obtenerFechaInput(convenio.fecha_renovacion_firmas) === filtroFechaRenovacion;
+
+    return (
+      coincideNumero &&
+      coincideParque &&
+      coincideEstado &&
+      coincideFechaFirma &&
+      coincideFechaRenovacion
+    );
+  });
+
+  // ============================================
+  // PAGINACIÓN
+  // ============================================
+
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
+
+  const totalPaginas = Math.max(1, Math.ceil(conveniosFiltrados.length / registrosPorPagina));
+  const indiceInicial = (paginaActual - 1) * registrosPorPagina;
+  const indiceFinal = indiceInicial + registrosPorPagina;
+  const conveniosPaginados = conveniosFiltrados.slice(indiceInicial, indiceFinal);
+
+  const paginasVisibles = (() => {
+    const paginas: number[] = [];
+    const inicio = Math.max(1, paginaActual - 2);
+    const fin = Math.min(totalPaginas, inicio + 4);
+    const inicioAjustado = Math.max(1, fin - 4);
+
+    for (let pagina = Math.max(1, inicioAjustado); pagina <= fin; pagina += 1) {
+      paginas.push(pagina);
+    }
+    return paginas;
+  })();
+
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [
     filtroNumeroConvenio,
-    setFiltroNumeroConvenio,
-  ] = useState('');
-
-  const [
     filtroParque,
-    setFiltroParque,
-  ] = useState('');
-
-  const [
     filtroEstado,
-    setFiltroEstado,
-  ] = useState('');
-
-  const [
     filtroFechaFirma,
-    setFiltroFechaFirma,
-  ] = useState('');
-
-  const [
     filtroFechaRenovacion,
-    setFiltroFechaRenovacion,
-  ] = useState('');
+    registrosPorPagina,
+  ]);
 
-  const normalizarTexto = (
-    valor: string | null | undefined,
-  ) =>
-    (valor ?? '')
-      .toLowerCase()
-      .trim();
+  useEffect(() => {
+    if (paginaActual > totalPaginas) {
+      setPaginaActual(totalPaginas);
+    }
+  }, [paginaActual, totalPaginas]);
 
-  const conveniosFiltrados =
-    convenios.filter(
-      (convenio) => {
-        const coincideNumero =
-          normalizarTexto(
-            convenio.numero_convenio,
-          ).includes(
-            normalizarTexto(
-              filtroNumeroConvenio,
-            ),
-          );
-
-        const coincideParque =
-          !filtroParque ||
-          String(
-            convenio.parque
-              ?.id_parque ?? '',
-          ) === filtroParque;
-
-        const coincideEstado =
-          !filtroEstado ||
-          convenio.estado_convenio ===
-            filtroEstado;
-
-        const coincideFechaFirma =
-          !filtroFechaFirma ||
-          obtenerFechaInput(
-            convenio.fecha_firma,
-          ) === filtroFechaFirma;
-
-        const coincideFechaRenovacion =
-          !filtroFechaRenovacion ||
-          obtenerFechaInput(
-            convenio
-              .fecha_renovacion_firmas,
-          ) === filtroFechaRenovacion;
-
-        return (
-          coincideNumero &&
-          coincideParque &&
-          coincideEstado &&
-          coincideFechaFirma &&
-          coincideFechaRenovacion
-        );
-      },
-    );
-
-  const hayFiltrosActivos =
-    Boolean(
-      filtroNumeroConvenio ||
-      filtroParque ||
-      filtroEstado ||
-      filtroFechaFirma ||
-      filtroFechaRenovacion,
-    );
+  const hayFiltrosActivos = Boolean(
+    filtroNumeroConvenio ||
+    filtroParque ||
+    filtroEstado ||
+    filtroFechaFirma ||
+    filtroFechaRenovacion,
+  );
 
   const limpiarFiltros = () => {
     setFiltroNumeroConvenio('');
@@ -252,184 +194,93 @@ export default function Convenios() {
     setFiltroFechaRenovacion('');
   };
 
-  // ============================
-  // MODAL CREAR / EDITAR
-  // ============================
-
-  const [
-    modalAbierto,
-    setModalAbierto,
-  ] = useState(false);
-
-  const [
-    guardando,
-    setGuardando,
-  ] = useState(false);
-
-  const [
-    errorFormulario,
-    setErrorFormulario,
-  ] = useState('');
-
-  const [
-    modoEdicion,
-    setModoEdicion,
-  ] = useState(false);
-
-  const [
-    idConvenioEditando,
-    setIdConvenioEditando,
-  ] = useState<number | null>(null);
+  const sanitizarPlazo = (valor: string) => {
+    const soloNumeros = valor.replace(/\D/g, '').slice(0, 3);
+    if (!soloNumeros) {
+      return '';
+    }
+    const numero = Number(soloNumeros);
+    return String(Math.min(numero, 100));
+  };
 
   // ============================
-  // MODAL VER INFORMACIÓN
+  // MODALES (ESTADOS)
   // ============================
 
-  const [
-    modalInformacionAbierto,
-    setModalInformacionAbierto,
-  ] = useState(false);
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [errorFormulario, setErrorFormulario] = useState('');
+  const [modoEdicion, setModoEdicion] = useState(false);
+  const [idConvenioEditando, setIdConvenioEditando] = useState<number | null>(null);
 
-  const [
-    convenioVer,
-    setConvenioVer,
-  ] = useState<Convenio | null>(null);
+  const [modalInformacionAbierto, setModalInformacionAbierto] = useState(false);
+  const [convenioVer, setConvenioVer] = useState<Convenio | null>(null);
 
-  // ============================
-  // MODAL ELIMINAR
-  // ============================
+  const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false);
+  const [convenioEliminar, setConvenioEliminar] = useState<Convenio | null>(null);
+  const [eliminando, setEliminando] = useState(false);
+  const [errorEliminar, setErrorEliminar] = useState('');
 
-  const [
-    modalEliminarAbierto,
-    setModalEliminarAbierto,
-  ] = useState(false);
+  // Lógica para bloquear el desplazamiento del fondo cuando un modal está abierto
+  const unModalEstaAbierto = Boolean(modalAbierto || modalInformacionAbierto || modalEliminarAbierto);
 
-  const [
-    convenioEliminar,
-    setConvenioEliminar,
-  ] = useState<Convenio | null>(null);
-
-  const [
-    eliminando,
-    setEliminando,
-  ] = useState(false);
-
-  const [
-    errorEliminar,
-    setErrorEliminar,
-  ] = useState('');
+  useEffect(() => {
+    if (unModalEstaAbierto) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [unModalEstaAbierto]);
 
   // ============================
   // FORMULARIO
   // ============================
 
-  const [
-    numeroConvenio,
-    setNumeroConvenio,
-  ] = useState('');
-
-  const [
-    idParque,
-    setIdParque,
-  ] = useState('');
-
-  const [
-    fechaFirma,
-    setFechaFirma,
-  ] = useState('');
-
-  const [
-    plazo,
-    setPlazo,
-  ] = useState('');
-
-  const [
-    fechaRenovacion,
-    setFechaRenovacion,
-  ] = useState('');
-
-  const [
-    estadoConvenio,
-    setEstadoConvenio,
-  ] = useState('Vigente');
+  const [numeroConvenio, setNumeroConvenio] = useState('');
+  const [idParque, setIdParque] = useState('');
+  const [fechaFirma, setFechaFirma] = useState('');
+  const [plazo, setPlazo] = useState('');
+  const [fechaRenovacion, setFechaRenovacion] = useState('');
+  const [estadoConvenio, setEstadoConvenio] = useState('Vigente');
 
   // ============================
   // CALCULAR RENOVACIÓN AUTOMÁTICA
   // ============================
 
   useEffect(() => {
-    const fechaCalculada =
-      calcularFechaRenovacion(
-        fechaFirma,
-        plazo,
-      );
-
-    setFechaRenovacion(
-      fechaCalculada,
-    );
-  }, [
-    fechaFirma,
-    plazo,
-  ]);
+    const fechaCalculada = calcularFechaRenovacion(fechaFirma, plazo);
+    setFechaRenovacion(fechaCalculada);
+  }, [fechaFirma, plazo]);
 
   // ============================
-  // CARGAR CONVENIOS
+  // CARGAR DATOS (API)
   // ============================
 
-  const cargarConvenios =
-    async () => {
-      try {
-        setCargando(true);
-        setError('');
+  const cargarConvenios = async () => {
+    try {
+      setCargando(true);
+      setError('');
+      const response = await api.get('/convenios');
+      setConvenios(response.data);
+    } catch (error) {
+      console.error('Error cargando convenios:', error);
+      setError('No se pudieron cargar los convenios.');
+    } finally {
+      setCargando(false);
+    }
+  };
 
-        const response =
-          await api.get(
-            '/convenios',
-          );
-
-        setConvenios(
-          response.data,
-        );
-      } catch (error) {
-        console.error(
-          'Error cargando convenios:',
-          error,
-        );
-
-        setError(
-          'No se pudieron cargar los convenios.',
-        );
-      } finally {
-        setCargando(false);
-      }
-    };
-
-  // ============================
-  // CARGAR PARQUES
-  // ============================
-
-  const cargarParques =
-    async () => {
-      try {
-        const response =
-          await api.get(
-            '/parques',
-          );
-
-        setParques(
-          response.data,
-        );
-      } catch (error) {
-        console.error(
-          'Error cargando parques:',
-          error,
-        );
-      }
-    };
-
-  // ============================
-  // USE EFFECT
-  // ============================
+  const cargarParques = async () => {
+    try {
+      const response = await api.get('/parques');
+      setParques(response.data);
+    } catch (error) {
+      console.error('Error cargando parques:', error);
+    }
+  };
 
   useEffect(() => {
     cargarConvenios();
@@ -437,318 +288,137 @@ export default function Convenios() {
   }, []);
 
   // ============================
-  // LIMPIAR FORMULARIO
+  // MANEJO DE MODALES
   // ============================
 
-  const limpiarFormulario =
-    () => {
-      setNumeroConvenio('');
-      setIdParque('');
-      setFechaFirma('');
-      setPlazo('');
-      setFechaRenovacion('');
-      setEstadoConvenio(
-        'Vigente',
-      );
-      setErrorFormulario('');
-    };
-
-  // ============================
-  // NUEVO CONVENIO
-  // ============================
-
-  const abrirModalCrear =
-    () => {
-      limpiarFormulario();
-
-      setModoEdicion(false);
-
-      setIdConvenioEditando(
-        null,
-      );
-
-      setModalAbierto(true);
-    };
-
-  // ============================
-  // EDITAR CONVENIO
-  // ============================
-
-  const abrirModalEditar = (
-    convenio: Convenio,
-  ) => {
-    setNumeroConvenio(
-      convenio.numero_convenio ??
-        '',
-    );
-
-    setIdParque(
-      convenio.parque
-        ? String(
-            convenio.parque
-              .id_parque,
-          )
-        : '',
-    );
-
-    setFechaFirma(
-      obtenerFechaInput(
-        convenio.fecha_firma,
-      ),
-    );
-
-    setPlazo(
-      String(
-        convenio.plazo ?? '',
-      ),
-    );
-
-    setFechaRenovacion(
-      obtenerFechaInput(
-        convenio
-          .fecha_renovacion_firmas,
-      ),
-    );
-
-    setEstadoConvenio(
-      convenio.estado_convenio ||
-        'Vigente',
-    );
-
-    setModoEdicion(true);
-
-    setIdConvenioEditando(
-      convenio.id_convenio,
-    );
-
+  const limpiarFormulario = () => {
+    setNumeroConvenio('');
+    setIdParque('');
+    setFechaFirma('');
+    setPlazo('');
+    setFechaRenovacion('');
+    setEstadoConvenio('Vigente');
     setErrorFormulario('');
+  };
 
+  const abrirModalCrear = () => {
+    limpiarFormulario();
+    setModoEdicion(false);
+    setIdConvenioEditando(null);
     setModalAbierto(true);
   };
 
-  // ============================
-  // CERRAR MODAL
-  // ============================
-
-  const cerrarModal = () => {
-    if (guardando) {
-      return;
-    }
-
-    setModalAbierto(false);
-
-    limpiarFormulario();
-
-    setModoEdicion(false);
-
-    setIdConvenioEditando(
-      null,
-    );
+  const abrirModalEditar = (convenio: Convenio) => {
+    setNumeroConvenio(convenio.numero_convenio ?? '');
+    setIdParque(convenio.parque ? String(convenio.parque.id_parque) : '');
+    setFechaFirma(obtenerFechaInput(convenio.fecha_firma));
+    setPlazo(String(convenio.plazo ?? ''));
+    setFechaRenovacion(obtenerFechaInput(convenio.fecha_renovacion_firmas));
+    setEstadoConvenio(convenio.estado_convenio || 'Vigente');
+    setModoEdicion(true);
+    setIdConvenioEditando(convenio.id_convenio);
+    setErrorFormulario('');
+    setModalAbierto(true);
   };
 
-  // ============================
-  // GUARDAR CONVENIO
-  // ============================
+  const cerrarModal = () => {
+    if (guardando) return;
+    setModalAbierto(false);
+    limpiarFormulario();
+    setModoEdicion(false);
+    setIdConvenioEditando(null);
+  };
 
-  const guardarConvenio = async (
-    event: FormEvent<HTMLFormElement>,
-  ) => {
+  const guardarConvenio = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     setGuardando(true);
     setErrorFormulario('');
 
     try {
-      const token =
-        localStorage.getItem(
-          'token',
-        );
+      const token = localStorage.getItem('token');
 
-      // ============================
-      // VALIDACIONES
-      // ============================
-
-      if (
-        !numeroConvenio.trim()
-      ) {
-        setErrorFormulario(
-          'Debe ingresar el número de convenio.',
-        );
-
+      // Validaciones
+      if (!numeroConvenio.trim()) {
+        setErrorFormulario('Debe ingresar el número de convenio.');
+        setGuardando(false);
         return;
       }
-
       if (!idParque) {
-        setErrorFormulario(
-          'Debe seleccionar un parque.',
-        );
-
+        setErrorFormulario('Debe seleccionar un parque.');
+        setGuardando(false);
         return;
       }
-
       if (!fechaFirma) {
-        setErrorFormulario(
-          'Debe indicar la fecha de firma.',
-        );
-
+        setErrorFormulario('Debe indicar la fecha de firma.');
+        setGuardando(false);
         return;
       }
-
-      if (
-        !plazo ||
-        Number(plazo) <= 0
-      ) {
-        setErrorFormulario(
-          'El plazo debe ser mayor que 0.',
-        );
-
+      if (!plazo || Number(plazo) <= 0) {
+        setErrorFormulario('El plazo debe ser mayor que 0.');
+        setGuardando(false);
         return;
       }
-
+      if (Number(plazo) > 100) {
+        setErrorFormulario('El plazo no puede ser mayor a 100 años.');
+        setGuardando(false);
+        return;
+      }
       if (!fechaRenovacion) {
-        setErrorFormulario(
-          'Debe indicar la fecha de renovación.',
-        );
-
+        setErrorFormulario('Debe indicar la fecha de renovación.');
+        setGuardando(false);
         return;
       }
-
       if (!estadoConvenio) {
-        setErrorFormulario(
-          'Debe seleccionar el estado del convenio.',
-        );
-
+        setErrorFormulario('Debe seleccionar el estado del convenio.');
+        setGuardando(false);
         return;
       }
-
-      if (
-        fechaRenovacion <
-        fechaFirma
-      ) {
-        setErrorFormulario(
-          'La fecha de renovación no puede ser anterior a la fecha de firma.',
-        );
-
+      if (fechaRenovacion < fechaFirma) {
+        setErrorFormulario('La fecha de renovación no puede ser anterior a la fecha de firma.');
+        setGuardando(false);
         return;
       }
-
-      // ============================
-      // DATOS
-      // ============================
 
       const datosConvenio = {
-        numero_convenio:
-          numeroConvenio.trim(),
-
-        id_parque:
-          Number(idParque),
-
-        fecha_firma:
-          fechaFirma,
-
-        plazo:
-          Number(plazo),
-
-        fecha_renovacion_firmas:
-          fechaRenovacion,
-
-        estado_convenio:
-          estadoConvenio,
+        numero_convenio: numeroConvenio.trim(),
+        id_parque: Number(idParque),
+        fecha_firma: fechaFirma,
+        plazo: Number(plazo),
+        fecha_renovacion_firmas: fechaRenovacion,
+        estado_convenio: estadoConvenio,
       };
 
-      // ============================
-      // EDITAR
-      // ============================
-
-      if (
-        modoEdicion &&
-        idConvenioEditando !==
-          null
-      ) {
-        await api.patch(
-          `/convenios/${idConvenioEditando}`,
-          datosConvenio,
-          {
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          },
-        );
-      }
-
-      // ============================
-      // CREAR
-      // ============================
-
-      else {
-        await api.post(
-          '/convenios',
-          datosConvenio,
-          {
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          },
-        );
+      if (modoEdicion && idConvenioEditando !== null) {
+        await api.patch(`/convenios/${idConvenioEditando}`, datosConvenio, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        await api.post('/convenios', datosConvenio, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
       }
 
       setModalAbierto(false);
-
       limpiarFormulario();
-
       setModoEdicion(false);
-
-      setIdConvenioEditando(
-        null,
-      );
-
+      setIdConvenioEditando(null);
       await cargarConvenios();
     } catch (error: any) {
-      console.error(
-        'Error guardando convenio:',
-        error,
-      );
-
-      if (
-        error.response?.status ===
-        401
-      ) {
-        localStorage.removeItem(
-          'token',
-        );
-
-        localStorage.removeItem(
-          'usuario',
-        );
-
+      console.error('Error guardando convenio:', error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('usuario');
         navigate('/login');
-
         return;
       }
-
-      const message =
-        error.response?.data
-          ?.message;
-
-      if (
-        Array.isArray(
-          message,
-        )
-      ) {
-        setErrorFormulario(
-          message.join(', '),
-        );
+      const message = error.response?.data?.message;
+      if (Array.isArray(message)) {
+        setErrorFormulario(message.join(', '));
       } else if (message) {
-        setErrorFormulario(
-          message,
-        );
+        setErrorFormulario(message);
       } else {
         setErrorFormulario(
-          modoEdicion
-            ? 'No se pudo actualizar el convenio.'
-            : 'No se pudo registrar el convenio.',
+          modoEdicion ? 'No se pudo actualizar el convenio.' : 'No se pudo registrar el convenio.',
         );
       }
     } finally {
@@ -756,13 +426,7 @@ export default function Convenios() {
     }
   };
 
-  // ============================
-  // VER INFORMACIÓN
-  // ============================
-
-  const abrirModalInformacion = (
-    convenio: Convenio,
-  ) => {
+  const abrirModalInformacion = (convenio: Convenio) => {
     setConvenioVer(convenio);
     setModalInformacionAbierto(true);
   };
@@ -772,1266 +436,766 @@ export default function Convenios() {
     setConvenioVer(null);
   };
 
-  // ============================
-  // ABRIR MODAL ELIMINAR
-  // ============================
-
-  const abrirModalEliminar = (
-    convenio: Convenio,
-  ) => {
-    setConvenioEliminar(
-      convenio,
-    );
-
+  const abrirModalEliminar = (convenio: Convenio) => {
+    setConvenioEliminar(convenio);
     setErrorEliminar('');
-
-    setModalEliminarAbierto(
-      true,
-    );
+    setModalEliminarAbierto(true);
   };
 
-  // ============================
-  // CERRAR MODAL ELIMINAR
-  // ============================
+  const cerrarModalEliminar = () => {
+    if (eliminando) return;
+    setModalEliminarAbierto(false);
+    setConvenioEliminar(null);
+    setErrorEliminar('');
+  };
 
-  const cerrarModalEliminar =
-    () => {
-      if (eliminando) {
-        return;
-      }
+  const confirmarEliminarConvenio = async () => {
+    if (!convenioEliminar) return;
 
-      setModalEliminarAbierto(
-        false,
-      );
-
-      setConvenioEliminar(
-        null,
-      );
-
+    try {
+      setEliminando(true);
       setErrorEliminar('');
-    };
+      const token = localStorage.getItem('token');
 
-  // ============================
-  // ELIMINAR CONVENIO
-  // ============================
+      await api.delete(`/convenios/${convenioEliminar.id_convenio}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-  const confirmarEliminarConvenio =
-    async () => {
-      if (!convenioEliminar) {
+      setModalEliminarAbierto(false);
+      setConvenioEliminar(null);
+      await cargarConvenios();
+    } catch (error: any) {
+      console.error('Error eliminando convenio:', error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('usuario');
+        navigate('/login');
         return;
       }
-
-      try {
-        setEliminando(true);
-        setErrorEliminar('');
-
-        const token =
-          localStorage.getItem(
-            'token',
-          );
-
-        await api.delete(
-          `/convenios/${convenioEliminar.id_convenio}`,
-          {
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          },
-        );
-
-        setModalEliminarAbierto(
-          false,
-        );
-
-        setConvenioEliminar(
-          null,
-        );
-
-        await cargarConvenios();
-      } catch (error: any) {
-        console.error(
-          'Error eliminando convenio:',
-          error,
-        );
-
-        if (
-          error.response?.status ===
-          401
-        ) {
-          localStorage.removeItem(
-            'token',
-          );
-
-          localStorage.removeItem(
-            'usuario',
-          );
-
-          navigate('/login');
-
-          return;
-        }
-
-        const message =
-          error.response?.data
-            ?.message;
-
-        if (
-          Array.isArray(
-            message,
-          )
-        ) {
-          setErrorEliminar(
-            message.join(', '),
-          );
-        } else if (message) {
-          setErrorEliminar(
-            message,
-          );
-        } else {
-          setErrorEliminar(
-            'No se pudo eliminar el convenio.',
-          );
-        }
-      } finally {
-        setEliminando(false);
+      const message = error.response?.data?.message;
+      if (Array.isArray(message)) {
+        setErrorEliminar(message.join(', '));
+      } else if (message) {
+        setErrorEliminar(message);
+      } else {
+        setErrorEliminar('No se pudo eliminar el convenio.');
       }
-    };
-
-  // ============================
-  // CERRAR SESIÓN
-  // ============================
-
-  const handleLogout = () => {
-    localStorage.removeItem(
-      'token',
-    );
-
-    localStorage.removeItem(
-      'usuario',
-    );
-
-    navigate('/login');
+    } finally {
+      setEliminando(false);
+    }
   };
+
+  // ============================
+  // CERRAR MODALES CON ESC
+  // ============================
+  useEffect(() => {
+    const manejarEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (modalInformacionAbierto) return cerrarModalInformacion();
+      if (modalEliminarAbierto) return cerrarModalEliminar();
+      if (modalAbierto) return cerrarModal();
+    };
+    document.addEventListener('keydown', manejarEscape);
+    return () => document.removeEventListener('keydown', manejarEscape);
+  }, [modalInformacionAbierto, modalEliminarAbierto, modalAbierto, guardando, eliminando]);
 
   // ============================
   // COLOR DEL ESTADO
   // ============================
-
-  const obtenerClaseEstado = (
-    estado: string,
-  ) => {
+  const obtenerClaseEstado = (estado: string) => {
     switch (estado) {
       case 'Vigente':
-        return 'rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700';
-
+        return 'inline-flex rounded-md bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-400';
       case 'En renovación':
-        return 'rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-700';
-
+        return 'inline-flex rounded-md bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-400';
       case 'Vencido':
-        return 'rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700';
-
+        return 'inline-flex rounded-md bg-red-500/20 border border-red-500/30 px-2.5 py-1 text-xs font-bold text-red-400';
       case 'Finalizado':
-        return 'rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700';
-
+        return 'inline-flex rounded-md bg-slate-500/20 border border-slate-500/30 px-2.5 py-1 text-xs font-bold text-slate-300';
       default:
-        return 'rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600';
+        return 'inline-flex rounded-md bg-slate-500/20 border border-slate-500/30 px-2.5 py-1 text-xs font-bold text-slate-300';
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="relative min-h-screen w-full font-sans antialiased text-white flex flex-col overflow-x-hidden">
+      
+      {/* 1. IMAGEN DE FONDO FIJA */}
+      <div
+        className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${fondoGrecia})` }}
+      />
 
-      {/* ============================ */}
-      {/* HEADER */}
-      {/* ============================ */}
+      {/* 2. OVERLAY OSCURO */}
+      <div
+        className="fixed inset-0 z-0"
+        style={{
+          background:
+            'radial-gradient(circle at 12% 12%, rgba(5, 25, 36, 0.98) 0%, rgba(5, 25, 36, 0.88) 28%, transparent 58%), linear-gradient(180deg, rgba(6, 20, 28, 0.85) 0%, rgba(6, 20, 28, 0.93) 100%)',
+        }}
+      />
 
-      <header className="border-b border-slate-200 bg-white px-8 py-5">
+      {/* 3. FRANJA TRICOLOR INSTITUCIONAL */}
+      <div className="fixed inset-x-0 top-0 z-50 grid h-1.5 grid-cols-[2.2fr_1fr_.7fr]">
+        <span className="bg-[#315F73]" />
+        <span className="bg-[#18843B]" />
+        <span className="bg-[#D4112E]" />
+      </div>
 
+      {/* 4. CABECERA FLOTANTE OSCURA CON BOTÓN VOLVER TEXTUAL */}
+      <header className="relative z-30 w-full border-b border-white/10 bg-[#0B212D]/80 backdrop-blur-xl px-6 lg:px-12 py-3.5 shadow-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
-
-          <div>
-
-            <h1 className="text-2xl font-bold text-slate-900">
-              Gestión de Convenios
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Administración de los convenios asociados a los parques.
-            </p>
-
+          
+          <div className="flex items-center gap-4">
+            <img
+              src={logoMunicipalidad}
+              alt="Municipalidad de Grecia"
+              className="h-11 w-auto object-contain drop-shadow-md"
+            />
+            
+            <div className="hidden h-9 w-[1px] bg-white/20 sm:block" />
+            
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#86efac]">
+                SISTEMA DE CATASTRO
+              </span>
+              <h1 className="text-base font-extrabold text-white tracking-tight leading-tight">
+                Gestión de Convenios
+              </h1>
+              <p className="text-[11px] text-slate-300">
+                Administración de los convenios asociados a los parques.
+              </p>
+            </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col items-end gap-2.5">
+            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3.5 py-1.5 backdrop-blur-md">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#18843B] text-xs font-bold text-white shadow-sm">
+                DR
+              </div>
+              <div className="text-left leading-tight">
+                <p className="text-xs font-bold text-white">Derek</p>
+                <p className="text-[10px] text-slate-300">rodriguezderek12@gmail.com</p>
+              </div>
+            </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  '/dashboard',
-                )
-              }
-              className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300"
-            >
-              Volver al panel
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard')}
+                className="rounded-lg border border-white/10 bg-white/10 px-3.5 py-1.5 text-xs font-bold text-slate-200 transition hover:bg-white/20 hover:text-white"
+              >
+                Volver al panel
+              </button>
 
-            <button
-              type="button"
-              onClick={
-                handleLogout
-              }
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-            >
-              Cerrar sesión
-            </button>
-
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.removeItem('token');
+                  localStorage.removeItem('usuario');
+                  navigate('/login');
+                }}
+                className="flex items-center gap-1.5 rounded-lg bg-[#D4112E] px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#b00e26]"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                </svg>
+                <span>Cerrar sesión</span>
+              </button>
+            </div>
           </div>
 
         </div>
-
       </header>
 
-      {/* ============================ */}
-      {/* CONTENIDO */}
-      {/* ============================ */}
-
-      <main className="mx-auto max-w-7xl px-8 py-10">
-
-        <div className="mb-6 flex items-center justify-between">
-
-          <div>
-
-            <h2 className="text-xl font-semibold text-slate-900">
-              Convenios registrados
+      {/* ====================================== */}
+      {/* CONTENIDO PRINCIPAL */}
+      {/* ====================================== */}
+      <main className="relative z-20 mx-auto w-full max-w-7xl px-6 lg:px-12 py-8 flex-1">
+        
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="flex items-center gap-2 text-xl font-bold text-white tracking-tight">
+              <FileText className="shrink-0 text-[#18843B]" size={22} />
+              <span className="truncate">Convenios registrados</span>
             </h2>
-
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-slate-300">
               Consulte y administre los convenios registrados en el sistema.
             </p>
-
           </div>
-
           <button
             type="button"
-            onClick={
-              abrirModalCrear
-            }
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            onClick={abrirModalCrear}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#18843B] px-5 py-2.5 text-sm font-bold text-white shadow-lg hover:bg-emerald-600 transition-colors"
           >
-            + Nuevo convenio
+            <Plus size={19} />
+            Nuevo convenio
           </button>
-
         </div>
 
-        {/* ============================ */}
+        {/* ====================================== */}
         {/* FILTROS DE BÚSQUEDA */}
-        {/* ============================ */}
-
-        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-
+        {/* ====================================== */}
+        <div className="mb-8 rounded-2xl border border-white/10 bg-[#0c2330]/85 p-6 shadow-xl backdrop-blur-md">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
             <div>
-              <h3 className="font-semibold text-slate-900">
+              <h3 className="flex items-center gap-2 font-bold text-white">
+                <Search size={18} />
                 Filtros de búsqueda
               </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-xs text-slate-300">
                 Utilice uno o varios criterios para localizar convenios específicos.
               </p>
             </div>
-
             <button
               type="button"
               onClick={limpiarFiltros}
               disabled={!hayFiltrosActivos}
-              className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg bg-white/10 border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
             >
               Limpiar filtros
             </button>
-
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Número de convenio
-              </label>
-
+            <div className="min-w-0">
+              <label className="mb-1.5 block text-sm font-medium text-slate-300">Número de convenio</label>
               <input
                 type="text"
                 value={filtroNumeroConvenio}
-                onChange={(event) =>
-                  setFiltroNumeroConvenio(
-                    event.target.value,
-                  )
-                }
+                onChange={(event) => setFiltroNumeroConvenio(event.target.value)}
                 placeholder="Ej: CONV-2026-001"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="w-full min-w-0 rounded-xl border border-white/20 bg-[#071923]/50 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
               />
             </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Parque
-              </label>
-
+            <div className="min-w-0">
+              <label className="mb-1.5 block text-sm font-medium text-slate-300">Parque</label>
               <select
                 value={filtroParque}
-                onChange={(event) =>
-                  setFiltroParque(
-                    event.target.value,
-                  )
-                }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                onChange={(event) => setFiltroParque(event.target.value)}
+                className="w-full min-w-0 rounded-xl border border-white/20 bg-[#071923]/50 px-3 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
               >
-                <option value="">
-                  Todos los parques
-                </option>
-
-                {parques.map(
-                  (parque) => (
-                    <option
-                      key={parque.id_parque}
-                      value={parque.id_parque}
-                    >
-                      {parque.ubicacion}
-                      {' - Finca '}
-                      {parque.numero_finca}
-                    </option>
-                  ),
-                )}
+                <option value="" className="bg-[#0B212D]">Todos los parques</option>
+                {parques.map((parque) => (
+                  <option key={parque.id_parque} value={parque.id_parque} className="bg-[#0B212D]">
+                    {parque.ubicacion} {parque.numero_finca ? `- Finca ${parque.numero_finca}` : ''}
+                  </option>
+                ))}
               </select>
             </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Estado
-              </label>
-
+            <div className="min-w-0">
+              <label className="mb-1.5 block text-sm font-medium text-slate-300">Estado</label>
               <select
                 value={filtroEstado}
-                onChange={(event) =>
-                  setFiltroEstado(
-                    event.target.value,
-                  )
-                }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                onChange={(event) => setFiltroEstado(event.target.value)}
+                className="w-full min-w-0 rounded-xl border border-white/20 bg-[#071923]/50 px-3 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
               >
-                <option value="">
-                  Todos los estados
-                </option>
-                <option value="Vigente">
-                  Vigente
-                </option>
-                <option value="En renovación">
-                  En renovación
-                </option>
-                <option value="Finalizado">
-                  Finalizado
-                </option>
-                <option value="Vencido">
-                  Vencido
-                </option>
+                <option value="" className="bg-[#0B212D]">Todos los estados</option>
+                <option value="Vigente" className="bg-[#0B212D]">Vigente</option>
+                <option value="En renovación" className="bg-[#0B212D]">En renovación</option>
+                <option value="Finalizado" className="bg-[#0B212D]">Finalizado</option>
+                <option value="Vencido" className="bg-[#0B212D]">Vencido</option>
               </select>
             </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Fecha de firma
-              </label>
-
+            <div className="min-w-0">
+              <label className="mb-1.5 block text-sm font-medium text-slate-300">Fecha de firma</label>
               <input
                 type="date"
                 value={filtroFechaFirma}
-                onChange={(event) =>
-                  setFiltroFechaFirma(
-                    event.target.value,
-                  )
-                }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                onChange={(event) => setFiltroFechaFirma(event.target.value)}
+                className="w-full min-w-0 rounded-xl border border-white/20 bg-[#071923]/50 px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500 [color-scheme:dark]"
               />
             </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Fecha de renovación
-              </label>
-
+            <div className="min-w-0">
+              <label className="mb-1.5 block text-sm font-medium text-slate-300">Fecha de renovación</label>
               <input
                 type="date"
                 value={filtroFechaRenovacion}
-                onChange={(event) =>
-                  setFiltroFechaRenovacion(
-                    event.target.value,
-                  )
-                }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                onChange={(event) => setFiltroFechaRenovacion(event.target.value)}
+                className="w-full min-w-0 rounded-xl border border-white/20 bg-[#071923]/50 px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500 [color-scheme:dark]"
               />
             </div>
-
           </div>
 
-          <div className="mt-4 border-t border-slate-100 pt-4">
-            <p className="text-sm text-slate-500">
-              Mostrando{' '}
-              <span className="font-semibold text-slate-900">
-                {conveniosFiltrados.length}
-              </span>{' '}
-              de{' '}
-              <span className="font-semibold text-slate-900">
-                {convenios.length}
-              </span>{' '}
-              convenios.
+          <div className="mt-5 border-t border-white/10 pt-4">
+            <p className="text-sm text-slate-400">
+              Mostrando <span className="font-bold text-white">{conveniosFiltrados.length}</span>
+              {' '}de <span className="font-bold text-white">{convenios.length}</span> convenios.
             </p>
           </div>
-
         </div>
 
         {/* CARGANDO */}
-
         {cargando && (
-
-          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+          <div className="rounded-2xl border border-white/10 bg-[#0d222e]/85 p-8 text-center text-slate-300 backdrop-blur-md">
             Cargando convenios...
           </div>
-
         )}
 
         {/* ERROR */}
-
-        {!cargando &&
-          error && (
-
-          <div className="rounded-xl border border-red-200 bg-red-50 p-6">
-
-            <p className="text-red-700">
-              {error}
-            </p>
-
+        {!cargando && error && (
+          <div className="rounded-2xl border border-red-500/30 bg-red-900/40 p-6 backdrop-blur-md">
+            <p className="font-semibold text-red-300">{error}</p>
             <button
               type="button"
-              onClick={
-                cargarConvenios
-              }
-              className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-white"
+              onClick={cargarConvenios}
+              className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700"
             >
               Intentar nuevamente
             </button>
-
           </div>
-
         )}
 
-        {/* TABLA */}
-
-        {!cargando &&
-          !error && (
-
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-
+        {/* ====================================== */}
+        {/* TABLA DE CONVENIOS (ANCHO AMPLIADO Y COLUMNA ACCIONES AJUSTADA) */}
+        {/* ====================================== */}
+        {!cargando && !error && (
+          <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#0d222e]/85 shadow-2xl backdrop-blur-md">
             <div className="overflow-x-auto">
-
-              <table className="w-full">
-
-                <thead className="bg-slate-50">
-
+              <table className="w-full min-w-[1350px] table-fixed">
+                <thead className="bg-white/5 border-b border-white/10">
                   <tr>
-
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
-                      Número de convenio
+                    <th className="w-[14%] px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-300">
+                      Nº Convenio
                     </th>
-
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
+                    <th className="w-[20%] px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-300">
                       Parque
                     </th>
-
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
-                      Fecha de firma
+                    <th className="w-[11%] px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-300">
+                      Fecha Firma
                     </th>
-
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
+                    <th className="w-[7%] px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-300">
                       Plazo
                     </th>
-
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
+                    <th className="w-[11%] px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-300">
                       Renovación
                     </th>
-
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
+                    <th className="w-[10%] px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-300">
                       Estado
                     </th>
-
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">
+                    <th className="w-[27%] px-5 py-4 pr-10 text-left text-xs font-bold uppercase tracking-wider text-slate-300">
                       Acciones
                     </th>
-
                   </tr>
-
                 </thead>
 
-                <tbody>
-
-                  {conveniosFiltrados.length ===
-                  0 ? (
-
+                <tbody className="divide-y divide-white/5">
+                  {conveniosFiltrados.length === 0 ? (
                     <tr>
-
-                      <td
-                        colSpan={7}
-                        className="px-4 py-12 text-center text-slate-500"
-                      >
+                      <td colSpan={7} className="px-6 py-14 text-center text-sm text-slate-400">
                         {hayFiltrosActivos
                           ? 'No se encontraron convenios que coincidan con los filtros seleccionados.'
                           : 'No hay convenios registrados.'}
                       </td>
-
                     </tr>
-
                   ) : (
+                    conveniosPaginados.map((convenio) => (
+                      <tr
+                        key={convenio.id_convenio}
+                        className="transition-colors hover:bg-white/5"
+                      >
+                        <td className="min-w-0 px-5 py-4 align-top">
+                          <p className="truncate font-bold text-white" title={convenio.numero_convenio || '—'}>
+                            {convenio.numero_convenio || '—'}
+                          </p>
+                        </td>
 
-                    conveniosFiltrados.map(
-                      (convenio) => (
-
-                        <tr
-                          key={
-                            convenio.id_convenio
-                          }
-                          className="border-t border-slate-100 hover:bg-slate-50"
-                        >
-
-                          {/* NÚMERO DE CONVENIO */}
-
-                          <td className="px-4 py-4 text-sm font-medium text-slate-900">
-                            {
-                              convenio.numero_convenio ||
-                              '—'
-                            }
-                          </td>
-
-                          {/* PARQUE */}
-
-                          <td className="px-4 py-4">
-
-                            <p className="font-medium text-slate-900">
-
-                              {convenio.parque
-                                ?.ubicacion ??
-                                'Parque no disponible'}
-
+                        <td className="min-w-0 px-5 py-4 align-top">
+                          <p className="truncate font-semibold text-slate-200" title={convenio.parque?.ubicacion ?? 'Parque no disponible'}>
+                            {convenio.parque?.ubicacion ?? 'Parque no disponible'}
+                          </p>
+                          {convenio.parque?.numero_finca && (
+                            <p className="mt-0.5 truncate text-xs text-slate-400">
+                              Finca: {convenio.parque.numero_finca}
                             </p>
+                          )}
+                        </td>
 
-                            {convenio.parque
-                              ?.numero_finca && (
+                        <td className="whitespace-nowrap px-5 py-4 align-top text-sm text-slate-300">
+                          {mostrarFecha(convenio.fecha_firma)}
+                        </td>
 
-                              <p className="mt-1 text-xs text-slate-500">
+                        <td className="whitespace-nowrap px-5 py-4 align-top text-sm font-semibold text-emerald-400">
+                          {convenio.plazo} {convenio.plazo === 1 ? 'año' : 'años'}
+                        </td>
 
-                                Finca:{' '}
-                                {
-                                  convenio.parque
-                                    .numero_finca
-                                }
+                        <td className="whitespace-nowrap px-5 py-4 align-top text-sm text-slate-300">
+                          {mostrarFecha(convenio.fecha_renovacion_firmas)}
+                        </td>
 
-                              </p>
+                        <td className="whitespace-nowrap px-5 py-4 align-top">
+                          <span className={obtenerClaseEstado(convenio.estado_convenio)}>
+                            {convenio.estado_convenio}
+                          </span>
+                        </td>
 
-                            )}
-
-                          </td>
-
-                          {/* FECHA FIRMA */}
-
-                          <td className="px-4 py-4 text-sm text-slate-700">
-
-                            {mostrarFecha(
-                              convenio.fecha_firma,
-                            )}
-
-                          </td>
-
-                          {/* PLAZO */}
-
-                          <td className="px-4 py-4 text-sm text-slate-700">
-
-                            {convenio.plazo}
-
-                          </td>
-
-                          {/* RENOVACIÓN */}
-
-                          <td className="px-4 py-4 text-sm text-slate-700">
-
-                            {mostrarFecha(
-                              convenio
-                                .fecha_renovacion_firmas,
-                            )}
-
-                          </td>
-
-                          {/* ESTADO */}
-
-                          <td className="px-4 py-4">
-
-                            <span
-                              className={obtenerClaseEstado(
-                                convenio.estado_convenio,
-                              )}
+                        <td className="whitespace-nowrap px-5 py-4 pr-10 align-top">
+                          <div className="flex flex-nowrap items-center gap-2">
+                            <button
+                              type="button"
+                              title="Información"
+                              onClick={() => abrirModalInformacion(convenio)}
+                              className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500/20 border border-indigo-500/30 px-3 py-1.5 text-xs font-bold text-indigo-300 hover:bg-indigo-500/30 transition-colors"
                             >
-                              {
-                                convenio.estado_convenio
-                              }
-                            </span>
+                              <Eye size={15} />
+                              Info
+                            </button>
 
-                          </td>
+                            <button
+                              type="button"
+                              title="Editar"
+                              onClick={() => abrirModalEditar(convenio)}
+                              className="inline-flex items-center gap-1.5 rounded-md bg-sky-500/20 border border-sky-500/30 px-3 py-1.5 text-xs font-bold text-sky-300 hover:bg-sky-500/30 transition-colors"
+                            >
+                              <Edit3 size={15} />
+                              Editar
+                            </button>
 
-                          {/* ACCIONES */}
-
-                          <td className="px-4 py-4">
-
-                            <div className="flex gap-2">
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  abrirModalEditar(
-                                    convenio,
-                                  )
-                                }
-                                className="rounded-md bg-sky-100 px-3 py-1 text-sm font-medium text-sky-700 hover:bg-sky-200"
-                              >
-                                Editar
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  abrirModalInformacion(
-                                    convenio,
-                                  )
-                                }
-                                className="rounded-md bg-violet-100 px-3 py-1 text-sm font-medium text-violet-700 hover:bg-violet-200"
-                              >
-                                Ver información
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  abrirModalEliminar(
-                                    convenio,
-                                  )
-                                }
-                                className="rounded-md bg-red-100 px-3 py-1 text-sm font-medium text-red-700 hover:bg-red-200"
-                              >
-                                Eliminar
-                              </button>
-
-                            </div>
-
-                          </td>
-
-                        </tr>
-
-                      ),
-                    )
-
+                            <button
+                              type="button"
+                              title="Eliminar"
+                              onClick={() => abrirModalEliminar(convenio)}
+                              className="inline-flex items-center gap-1.5 rounded-md bg-red-500/20 border border-red-500/30 px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/30 transition-colors"
+                            >
+                              <Trash2 size={15} />
+                              Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
                   )}
-
                 </tbody>
-
               </table>
-
             </div>
 
-          </div>
+            {/* PAGINACIÓN */}
+            {conveniosFiltrados.length > 0 && (
+              <div className="flex flex-col gap-4 bg-[#0B212D]/90 border-t border-white/10 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <p className="text-sm text-slate-400">
+                    Mostrando <span className="font-bold text-white">{indiceInicial + 1}</span> a{' '}
+                    <span className="font-bold text-white">{Math.min(indiceFinal, conveniosFiltrados.length)}</span> de{' '}
+                    <span className="font-bold text-white">{conveniosFiltrados.length}</span> convenios
+                  </p>
 
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="registrosPorPaginaConvenios" className="text-sm text-slate-400">
+                      Registros por página:
+                    </label>
+                    <select
+                      id="registrosPorPaginaConvenios"
+                      value={registrosPorPagina}
+                      onChange={(event) => setRegistrosPorPagina(Number(event.target.value))}
+                      className="rounded-lg border border-white/20 bg-[#071923] px-2 py-1 text-sm text-white focus:outline-none"
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+                    disabled={paginaActual === 1}
+                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-semibold text-slate-300 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ← Anterior
+                  </button>
+
+                  {paginasVisibles.map((pagina) => (
+                    <button
+                      key={pagina}
+                      type="button"
+                      onClick={() => setPaginaActual(pagina)}
+                      className={
+                        paginaActual === pagina
+                          ? 'min-w-9 rounded-lg bg-[#315F73] px-3 py-1.5 text-sm font-bold text-white'
+                          : 'min-w-9 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-semibold text-slate-300 hover:bg-white/10 transition-colors'
+                      }
+                    >
+                      {pagina}
+                    </button>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
+                    disabled={paginaActual === totalPaginas}
+                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-semibold text-slate-300 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Siguiente →
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
         )}
-
       </main>
 
-      {/* ============================ */}
-      {/* MODAL VER INFORMACIÓN */}
-      {/* ============================ */}
-
-      {modalInformacionAbierto &&
-        convenioVer && (
-
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-
-          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
-
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-
+      {/* =================================================
+          MODAL CREAR / EDITAR
+      ================================================= */}
+      {modalAbierto && (
+        <div onClick={cerrarModal} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div onClick={(e) => e.stopPropagation()} className="max-h-[85vh] h-auto w-full max-w-5xl flex flex-col rounded-2xl border border-white/10 bg-[#0B212D] shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-white/10 px-10 py-7 flex-shrink-0">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">
-                  Información del convenio
+                <h2 className="text-3xl font-black text-white tracking-tighter">
+                  {modoEdicion ? 'Editar convenio' : 'Nuevo convenio'}
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Información completa del convenio seleccionado.
+                <p className="mt-2 text-base text-slate-400">
+                  {modoEdicion ? 'Modifique la información del convenio.' : 'Complete la información para registrar el convenio.'}
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={cerrarModal}
+                disabled={guardando}
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors text-xl font-bold disabled:opacity-50"
+              >
+                ✕
+              </button>
+            </div>
 
+            <form onSubmit={guardarConvenio} className="flex-1 overflow-y-auto p-10">
+              {errorFormulario && (
+                <div className="mb-10 rounded-xl border border-red-500/30 bg-red-900/40 p-6 text-base font-semibold text-red-300">
+                  {errorFormulario}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                <div className="md:col-span-2">
+                  <label className="mb-3 block text-base font-bold text-slate-300">Número de convenio <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={numeroConvenio}
+                    onChange={(e) => setNumeroConvenio(e.target.value)}
+                    required
+                    maxLength={100}
+                    placeholder="Ej: CONV-2026-001"
+                    className="w-full rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white focus:border-emerald-500 focus:outline-none"
+                  />
+                  <p className="mt-2 text-xs text-slate-400">Máximo 100 caracteres.</p>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="mb-3 block text-base font-bold text-slate-300">Parque <span className="text-red-500">*</span></label>
+                  <select
+                    value={idParque}
+                    onChange={(e) => setIdParque(e.target.value)}
+                    required
+                    className="w-full rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white focus:border-emerald-500 focus:outline-none"
+                  >
+                    <option value="" className="text-slate-400">Seleccione un parque</option>
+                    {parques.map((parque) => (
+                      <option key={parque.id_parque} value={parque.id_parque} className="py-2 bg-[#0B212D]">
+                        {parque.ubicacion} {parque.numero_finca ? `- Finca ${parque.numero_finca}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-xs text-slate-400">Seleccione uno de los parques registrados.</p>
+                </div>
+
+                <div>
+                  <label className="mb-3 block text-base font-bold text-slate-300">Fecha de firma <span className="text-red-500">*</span></label>
+                  <input
+                    type="date"
+                    value={fechaFirma}
+                    onChange={(e) => setFechaFirma(e.target.value)}
+                    required
+                    className="w-full rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white focus:border-emerald-500 focus:outline-none [color-scheme:dark]"
+                  />
+                  <p className="mt-2 text-xs text-slate-400">Seleccione una fecha válida.</p>
+                </div>
+
+                <div>
+                  <label className="mb-3 block text-base font-bold text-slate-300">Plazo (años) <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={3}
+                    value={plazo}
+                    onChange={(e) => setPlazo(sanitizarPlazo(e.target.value))}
+                    required
+                    placeholder="Ej: 5"
+                    className="w-full rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white focus:border-emerald-500 focus:outline-none"
+                  />
+                  <p className="mt-2 text-xs text-slate-400">Solo números. Máximo 100 años.</p>
+                </div>
+
+                <div>
+                  <label className="mb-3 block text-base font-bold text-slate-300">Fecha de renovación de firmas</label>
+                  <input
+                    type="date"
+                    value={fechaRenovacion}
+                    readOnly
+                    required
+                    className="w-full cursor-not-allowed rounded-xl border border-white/10 bg-white/5 p-4 text-base text-slate-400 outline-none [color-scheme:dark]"
+                  />
+                  <p className="mt-2 text-xs text-slate-400">Se calcula automáticamente.</p>
+                </div>
+
+                <div>
+                  <label className="mb-3 block text-base font-bold text-slate-300">Estado del convenio <span className="text-red-500">*</span></label>
+                  <select
+                    value={estadoConvenio}
+                    onChange={(e) => setEstadoConvenio(e.target.value)}
+                    required
+                    className="w-full rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white focus:border-emerald-500 focus:outline-none"
+                  >
+                    <option value="Vigente" className="bg-[#0B212D]">Vigente</option>
+                    <option value="En renovación" className="bg-[#0B212D]">En renovación</option>
+                    <option value="Finalizado" className="bg-[#0B212D]">Finalizado</option>
+                    <option value="Vencido" className="bg-[#0B212D]">Vencido</option>
+                  </select>
+                  <p className="mt-2 text-xs text-slate-400">Seleccione el estado actual.</p>
+                </div>
+              </div>
+
+              <div className="mt-12 flex justify-end gap-5 border-t border-white/10 pt-10 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={cerrarModal}
+                  disabled={guardando}
+                  className="rounded-xl bg-white/10 px-8 py-3 text-base font-bold text-white hover:bg-white/20 disabled:opacity-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardando}
+                  className="rounded-xl bg-[#315F73] px-8 py-3 text-base font-bold text-white hover:bg-[#244C5F] disabled:opacity-50 transition-colors"
+                >
+                  {guardando ? 'Guardando...' : modoEdicion ? 'Guardar cambios' : 'Guardar convenio'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================
+          MODAL INFORMACIÓN
+      ================================================= */}
+      {modalInformacionAbierto && convenioVer && (
+        <div onClick={cerrarModalInformacion} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div onClick={(e) => e.stopPropagation()} className="max-h-[90vh] w-full max-w-4xl flex flex-col rounded-2xl border border-white/10 bg-[#0B212D] shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-white/10 px-10 py-7 flex-shrink-0">
+              <div>
+                <h2 className="text-3xl font-black text-white tracking-tighter">Información del convenio</h2>
+                <p className="mt-2 text-base text-slate-400">Información completa del convenio seleccionado.</p>
+              </div>
               <button
                 type="button"
                 onClick={cerrarModalInformacion}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-600 hover:bg-slate-200"
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors text-xl font-bold"
               >
-                ×
+                ✕
               </button>
-
             </div>
-
-            <div className="p-6">
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-
-                <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="text-xs font-semibold uppercase text-slate-500">
-                    Número de convenio
-                  </p>
-                  <p className="mt-1 font-medium text-slate-900">
-                    {convenioVer.numero_convenio || 'No registrado'}
-                  </p>
-                </div>
-
-                <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="text-xs font-semibold uppercase text-slate-500">
-                    Parque
-                  </p>
-                  <p className="mt-1 font-medium text-slate-900">
-                    {convenioVer.parque?.ubicacion ?? 'Parque no disponible'}
-                  </p>
+            
+            <div className="p-10 flex-1 overflow-y-auto">
+              <div className="mb-8 rounded-2xl border border-sky-500/30 bg-sky-900/30 p-8 flex flex-col items-center justify-center">
+                <p className="text-sm font-bold uppercase tracking-wide text-sky-400">Número de convenio</p>
+                <p className="mt-4 text-4xl font-black text-white tracking-tight text-center">{convenioVer.numero_convenio || 'No registrado'}</p>
+              </div>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6 md:col-span-2">
+                  <p className="text-sm font-bold uppercase tracking-wide text-slate-400">Parque</p>
+                  <p className="mt-2 text-xl font-semibold text-white">{convenioVer.parque?.ubicacion ?? 'Parque no disponible'}</p>
                   {convenioVer.parque?.numero_finca && (
-                    <p className="mt-1 text-sm text-slate-500">
-                      Finca: {convenioVer.parque.numero_finca}
-                    </p>
+                    <p className="mt-1 text-sm text-slate-400">Finca: {convenioVer.parque.numero_finca}</p>
                   )}
                 </div>
-
-                <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="text-xs font-semibold uppercase text-slate-500">
-                    Fecha de firma
-                  </p>
-                  <p className="mt-1 font-medium text-slate-900">
-                    {mostrarFecha(convenioVer.fecha_firma)}
-                  </p>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                  <p className="text-sm font-bold uppercase tracking-wide text-slate-400">Fecha de firma</p>
+                  <p className="mt-2 text-xl font-semibold text-white">{mostrarFecha(convenioVer.fecha_firma)}</p>
                 </div>
-
-                <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="text-xs font-semibold uppercase text-slate-500">
-                    Plazo
-                  </p>
-                  <p className="mt-1 font-medium text-slate-900">
-                    {convenioVer.plazo} {convenioVer.plazo === 1 ? 'año' : 'años'}
-                  </p>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                  <p className="text-sm font-bold uppercase tracking-wide text-slate-400">Plazo</p>
+                  <p className="mt-2 text-xl font-semibold text-emerald-400">{convenioVer.plazo} {convenioVer.plazo === 1 ? 'año' : 'años'}</p>
                 </div>
-
-                <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="text-xs font-semibold uppercase text-slate-500">
-                    Fecha de renovación
-                  </p>
-                  <p className="mt-1 font-medium text-slate-900">
-                    {mostrarFecha(convenioVer.fecha_renovacion_firmas)}
-                  </p>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                  <p className="text-sm font-bold uppercase tracking-wide text-slate-400">Fecha de renovación</p>
+                  <p className="mt-2 text-xl font-semibold text-white">{mostrarFecha(convenioVer.fecha_renovacion_firmas)}</p>
                 </div>
-
-                <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="text-xs font-semibold uppercase text-slate-500">
-                    Estado
-                  </p>
-                  <div className="mt-2">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                  <p className="text-sm font-bold uppercase tracking-wide text-slate-400">Estado</p>
+                  <div className="mt-3">
                     <span className={obtenerClaseEstado(convenioVer.estado_convenio)}>
                       {convenioVer.estado_convenio}
                     </span>
                   </div>
                 </div>
-
               </div>
-
-              <div className="mt-6 flex justify-end">
+              <div className="mt-12 flex justify-end pb-5 flex-shrink-0">
                 <button
                   type="button"
                   onClick={cerrarModalInformacion}
-                  className="rounded-lg bg-slate-900 px-5 py-2 font-semibold text-white hover:bg-slate-800"
+                  className="rounded-xl bg-white/10 px-8 py-3 text-base font-bold text-white hover:bg-white/20 transition-colors"
                 >
                   Cerrar
                 </button>
               </div>
-
             </div>
-
           </div>
-
         </div>
-
       )}
 
-      {/* ============================ */}
-      {/* MODAL CREAR / EDITAR */}
-      {/* ============================ */}
-
-      {modalAbierto && (
-
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-
-          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
-
-            {/* HEADER MODAL */}
-
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-
-              <div>
-
-                <h2 className="text-xl font-bold text-slate-900">
-
-                  {modoEdicion
-                    ? 'Editar convenio'
-                    : 'Nuevo convenio'}
-
-                </h2>
-
-                <p className="mt-1 text-sm text-slate-500">
-
-                  {modoEdicion
-                    ? 'Modifique la información del convenio.'
-                    : 'Complete la información para registrar el convenio.'}
-
-                </p>
-
-              </div>
-
-              <button
-                type="button"
-                onClick={
-                  cerrarModal
-                }
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-600 hover:bg-slate-200"
-              >
-                ×
-              </button>
-
+      {/* =================================================
+          MODAL ELIMINAR
+      ================================================= */}
+      {modalEliminarAbierto && convenioEliminar && (
+        <div onClick={cerrarModalEliminar} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div onClick={(e) => e.stopPropagation()} className="max-h-[90vh] w-full max-w-2xl flex flex-col rounded-2xl border border-white/10 bg-[#0B212D] shadow-2xl overflow-hidden">
+            <div className="border-b border-white/10 px-10 py-7 flex-shrink-0">
+              <h2 className="text-3xl font-black text-white tracking-tighter">Eliminar convenio</h2>
+              <p className="mt-2 text-base text-slate-400">Esta acción eliminará el registro seleccionado permanentemente.</p>
             </div>
-
-            {/* FORMULARIO */}
-
-            <form
-              onSubmit={
-                guardarConvenio
-              }
-              className="p-6"
-            >
-
-              {errorFormulario && (
-
-                <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                  {errorFormulario}
-                </div>
-
-              )}
-
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-
-                {/* NÚMERO DE CONVENIO */}
-
-                <div className="md:col-span-2">
-
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Número de convenio
-                  </label>
-
-                  <input
-                    type="text"
-                    value={
-                      numeroConvenio
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setNumeroConvenio(
-                        event.target.value,
-                      )
-                    }
-                    required
-                    maxLength={100}
-                    placeholder="Ej: CONV-2026-001"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                  />
-
-                </div>
-
-                {/* PARQUE */}
-
-                <div className="md:col-span-2">
-
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Parque
-                  </label>
-
-                  <select
-                    value={
-                      idParque
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setIdParque(
-                        event.target.value,
-                      )
-                    }
-                    required
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                  >
-
-                    <option value="">
-                      Seleccione un parque
-                    </option>
-
-                    {parques.map(
-                      (parque) => (
-
-                        <option
-                          key={
-                            parque.id_parque
-                          }
-                          value={
-                            parque.id_parque
-                          }
-                        >
-                          {
-                            parque.ubicacion
-                          }{' '}
-                          - Finca{' '}
-                          {
-                            parque.numero_finca
-                          }
-                        </option>
-
-                      ),
-                    )}
-
-                  </select>
-
-                </div>
-
-                {/* FECHA FIRMA */}
-
-                <div>
-
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Fecha de firma
-                  </label>
-
-                  <input
-                    type="date"
-                    value={
-                      fechaFirma
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setFechaFirma(
-                        event.target.value,
-                      )
-                    }
-                    required
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                  />
-
-                </div>
-
-                {/* PLAZO */}
-
-                <div>
-
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Plazo (años)
-                  </label>
-
-                  <input
-                    type="number"
-                    min="1"
-                    value={plazo}
-                    onChange={(
-                      event,
-                    ) =>
-                      setPlazo(
-                        event.target.value,
-                      )
-                    }
-                    required
-                    placeholder="Ej: 5"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                  />
-
-                  <p className="mt-1 text-xs text-slate-400">
-                    Ejemplo: 5. La fecha de renovación se calcula automáticamente.
-                  </p>
-
-                </div>
-
-                {/* FECHA RENOVACIÓN */}
-
-                <div>
-
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Fecha de renovación de firmas
-                  </label>
-
-                  <input
-                    type="date"
-                    value={
-                      fechaRenovacion
-                    }
-                    readOnly
-                    required
-                    className="w-full cursor-not-allowed rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-slate-700"
-                  />
-
-                  <p className="mt-1 text-xs text-slate-400">
-                    Se calcula automáticamente con la fecha de firma y el plazo en años.
-                  </p>
-
-                </div>
-
-                {/* ESTADO */}
-
-                <div>
-
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Estado del convenio
-                  </label>
-
-                  <select
-                    value={
-                      estadoConvenio
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setEstadoConvenio(
-                        event.target.value,
-                      )
-                    }
-                    required
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                  >
-
-                    <option value="Vigente">
-                      Vigente
-                    </option>
-
-                    <option value="En renovación">
-                      En renovación
-                    </option>
-
-                    <option value="Finalizado">
-                      Finalizado
-                    </option>
-
-                    <option value="Vencido">
-                      Vencido
-                    </option>
-
-                  </select>
-
-                  <p className="mt-1 text-xs text-slate-400">
-                    Si la fecha de renovación ya pasó y el convenio continúa vigente, el sistema lo cambiará automáticamente a "En renovación".
-                  </p>
-
-                </div>
-
+            
+            <div className="p-10 flex-1 overflow-y-auto">
+              <div className="rounded-2xl border border-red-500/30 bg-red-900/30 p-8 flex flex-col items-center justify-center text-center">
+                <p className="text-base text-red-300">¿Está seguro de que desea eliminar este convenio?</p>
+                <p className="mt-6 text-3xl font-black text-white tracking-tight break-all">
+                  {convenioEliminar.numero_convenio || 'Sin número de convenio'}
+                </p>
+                <p className="mt-3 text-lg text-slate-400">Parque: {convenioEliminar.parque?.ubicacion ?? 'Desconocido'}</p>
               </div>
-
-              {/* BOTONES */}
-
-              <div className="mt-7 flex justify-end gap-3 border-t border-slate-100 pt-5">
-
-                <button
-                  type="button"
-                  onClick={
-                    cerrarModal
-                  }
-                  disabled={
-                    guardando
-                  }
-                  className="rounded-lg bg-slate-200 px-5 py-2 font-semibold text-slate-700 hover:bg-slate-300 disabled:opacity-60"
-                >
-                  Cancelar
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={
-                    guardando
-                  }
-                  className="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-                >
-
-                  {guardando
-                    ? 'Guardando...'
-                    : modoEdicion
-                      ? 'Guardar cambios'
-                      : 'Guardar convenio'}
-
-                </button>
-
-              </div>
-
-            </form>
-
-          </div>
-
-        </div>
-
-      )}
-
-      {/* ============================ */}
-      {/* MODAL ELIMINAR */}
-      {/* ============================ */}
-
-      {modalEliminarAbierto &&
-        convenioEliminar && (
-
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
-
-            <div className="border-b border-slate-200 px-6 py-5">
-
-              <h2 className="text-xl font-bold text-slate-900">
-                Eliminar convenio
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Esta acción eliminará el convenio seleccionado.
-              </p>
-
-            </div>
-
-            <div className="p-6">
-
-              <div className="rounded-xl bg-red-50 p-4">
-
-                <p className="text-sm text-red-700">
-                  ¿Está seguro de que desea eliminar este convenio?
-                </p>
-
-                <p className="mt-3 text-sm font-semibold text-slate-900">
-                  Convenio:{' '}
-                  {
-                    convenioEliminar.numero_convenio ||
-                    'Sin número'
-                  }
-                </p>
-
-                <p className="mt-3 font-semibold text-slate-900">
-
-                  {convenioEliminar
-                    .parque
-                    ?.ubicacion ??
-                    'Parque'}
-
-                </p>
-
-                {convenioEliminar
-                  .parque
-                  ?.numero_finca && (
-
-                  <p className="mt-1 text-sm text-slate-500">
-
-                    Finca:{' '}
-                    {
-                      convenioEliminar
-                        .parque
-                        .numero_finca
-                    }
-
-                  </p>
-
-                )}
-
-                <p className="mt-1 text-sm text-slate-500">
-
-                  Fecha de firma:{' '}
-
-                  {mostrarFecha(
-                    convenioEliminar
-                      .fecha_firma,
-                  )}
-
-                </p>
-
-                <div className="mt-3">
-
-                  <span
-                    className={obtenerClaseEstado(
-                      convenioEliminar
-                        .estado_convenio,
-                    )}
-                  >
-                    {
-                      convenioEliminar
-                        .estado_convenio
-                    }
-                  </span>
-
-                </div>
-
-              </div>
-
-              {/* ERROR ELIMINAR */}
 
               {errorEliminar && (
-
-                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                  {errorEliminar}
+                <div className="mt-8 rounded-xl border border-red-500/30 bg-red-900/50 p-6 text-base font-semibold text-red-300">
+                  <p className="font-black text-lg text-red-300">No se puede eliminar el convenio</p>
+                  <p className="mt-2 text-base text-red-400">{errorEliminar}</p>
                 </div>
-
               )}
 
-              {/* BOTONES */}
-
-              <div className="mt-6 flex justify-end gap-3">
-
+              <div className="mt-12 flex justify-end gap-5 flex-shrink-0 pb-5">
                 <button
                   type="button"
-                  onClick={
-                    cerrarModalEliminar
-                  }
-                  disabled={
-                    eliminando
-                  }
-                  className="rounded-lg bg-slate-200 px-5 py-2 font-semibold text-slate-700 hover:bg-slate-300 disabled:opacity-60"
+                  onClick={cerrarModalEliminar}
+                  disabled={eliminando}
+                  className="rounded-xl bg-white/10 px-8 py-3 text-base font-bold text-white hover:bg-white/20 disabled:opacity-50 transition-colors"
                 >
                   Cancelar
                 </button>
-
                 <button
                   type="button"
-                  onClick={
-                    confirmarEliminarConvenio
-                  }
-                  disabled={
-                    eliminando
-                  }
-                  className="rounded-lg bg-red-600 px-5 py-2 font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                  onClick={confirmarEliminarConvenio}
+                  disabled={eliminando}
+                  className="rounded-xl bg-red-600 px-8 py-3 text-base font-bold text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
                 >
-
-                  {eliminando
-                    ? 'Eliminando...'
-                    : 'Sí, eliminar'}
-
+                  {eliminando ? 'Eliminando...' : 'Sí, eliminar permanentemente'}
                 </button>
-
               </div>
-
             </div>
-
           </div>
-
         </div>
-
       )}
 
     </div>
