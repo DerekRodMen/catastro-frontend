@@ -4,36 +4,33 @@ import {
   type FormEvent,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
-
 import { api } from '../../services/api';
 import fondoGrecia from '../../assets/grecia-login.jpg';
 import logoMunicipalidad from '../../assets/logo-municipalidad-grecia.webp';
-
+import SidebarCatastro from '../../components/SidebarCatastro';
 interface Distrito {
   id_distrito: number;
   nombre_distrito: string;
   numero_distrito: number;
 }
-
+// Componente principal para la gestión de distritos.
 export default function Distritos() {
   const navigate = useNavigate();
-
   // ============================
   // DATOS
   // ============================
   const [distritos, setDistritos] = useState<Distrito[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
-
   // ============================
   // FILTROS DE BÚSQUEDA
   // ============================
   const [filtroNombre, setFiltroNombre] = useState('');
   const [filtroNumero, setFiltroNumero] = useState('');
-
+  // Normaliza el texto para facilitar las búsquedas.
   const normalizarTexto = (valor: string | null | undefined) =>
     (valor ?? '').toLowerCase().trim();
-
+  // Filtra los distritos según los criterios seleccionados.
   const distritosFiltrados = distritos.filter((distrito) => {
     const coincideNombre = normalizarTexto(distrito.nombre_distrito).includes(
       normalizarTexto(filtroNombre),
@@ -41,38 +38,31 @@ export default function Distritos() {
     const coincideNumero =
       !filtroNumero ||
       String(distrito.numero_distrito).includes(filtroNumero.trim());
-
     return coincideNombre && coincideNumero;
   });
-
   const hayFiltrosActivos = Boolean(filtroNombre || filtroNumero);
-
+  // Restablece los filtros de búsqueda.
   const limpiarFiltros = () => {
     setFiltroNombre('');
     setFiltroNumero('');
   };
-
   // ============================================
   // PAGINACIÓN
   // ============================================
   const [paginaActual, setPaginaActual] = useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
-
   const totalPaginas = Math.max(1, Math.ceil(distritosFiltrados.length / registrosPorPagina));
   const indiceInicial = (paginaActual - 1) * registrosPorPagina;
   const indiceFinal = indiceInicial + registrosPorPagina;
   const distritosPaginados = distritosFiltrados.slice(indiceInicial, indiceFinal);
-
   useEffect(() => {
     setPaginaActual(1);
   }, [filtroNombre, filtroNumero, registrosPorPagina]);
-
   useEffect(() => {
     if (paginaActual > totalPaginas) {
       setPaginaActual(totalPaginas);
     }
   }, [paginaActual, totalPaginas]);
-
   // ============================
   // MODALES (ESTADOS)
   // ============================
@@ -81,15 +71,13 @@ export default function Distritos() {
   const [errorFormulario, setErrorFormulario] = useState('');
   const [modoEdicion, setModoEdicion] = useState(false);
   const [idDistritoEditando, setIdDistritoEditando] = useState<number | null>(null);
-
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false);
   const [distritoEliminar, setDistritoEliminar] = useState<Distrito | null>(null);
   const [eliminando, setEliminando] = useState(false);
   const [errorEliminar, setErrorEliminar] = useState('');
-
   // Lógica para bloquear el desplazamiento del fondo cuando un modal está abierto
+  // Indica si alguno de los modales está abierto.
   const unModalEstaAbierto = Boolean(modalAbierto || modalEliminarAbierto);
-
   useEffect(() => {
     if (unModalEstaAbierto) {
       document.body.style.overflow = 'hidden';
@@ -100,16 +88,15 @@ export default function Distritos() {
       document.body.style.overflow = '';
     };
   }, [unModalEstaAbierto]);
-
   // ============================
   // FORMULARIO
   // ============================
   const [nombreDistrito, setNombreDistrito] = useState('');
   const [numeroDistrito, setNumeroDistrito] = useState('');
-
   // ============================
   // CARGAR DISTRITOS
   // ============================
+  // Carga los distritos registrados desde la API.
   const cargarDistritos = async () => {
     try {
       setCargando(true);
@@ -123,33 +110,32 @@ export default function Distritos() {
       setCargando(false);
     }
   };
-
   useEffect(() => {
     cargarDistritos();
   }, []);
-
   // ============================
   // LIMPIAR FORMULARIO
   // ============================
+  // Limpia los campos y errores del formulario.
   const limpiarFormulario = () => {
     setNombreDistrito('');
     setNumeroDistrito('');
     setErrorFormulario('');
   };
-
   // ============================
   // NUEVO DISTRITO
   // ============================
+  // Abre el formulario para registrar un nuevo distrito.
   const abrirModalCrear = () => {
     limpiarFormulario();
     setModoEdicion(false);
     setIdDistritoEditando(null);
     setModalAbierto(true);
   };
-
   // ============================
   // EDITAR DISTRITO
   // ============================
+  // Carga los datos del distrito seleccionado para editarlo.
   const abrirModalEditar = (distrito: Distrito) => {
     setNombreDistrito(distrito.nombre_distrito ?? '');
     setNumeroDistrito(String(distrito.numero_distrito ?? ''));
@@ -158,7 +144,7 @@ export default function Distritos() {
     setErrorFormulario('');
     setModalAbierto(true);
   };
-
+  // Cierra el formulario y restablece sus datos.
   const cerrarModal = () => {
     if (guardando) return;
     setModalAbierto(false);
@@ -166,22 +152,20 @@ export default function Distritos() {
     setModoEdicion(false);
     setIdDistritoEditando(null);
   };
-
   // ============================
   // GUARDAR / EDITAR
   // ============================
+  // Registra o actualiza un distrito.
   const guardarDistrito = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setGuardando(true);
     setErrorFormulario('');
-
     try {
       const token = localStorage.getItem('token');
       const datosDistrito = {
         nombre_distrito: nombreDistrito.trim(),
         numero_distrito: Number(numeroDistrito),
       };
-
       if (modoEdicion && idDistritoEditando !== null) {
         await api.patch(`/distritos/${idDistritoEditando}`, datosDistrito, {
           headers: { Authorization: `Bearer ${token}` },
@@ -191,7 +175,6 @@ export default function Distritos() {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
-
       setModalAbierto(false);
       limpiarFormulario();
       setModoEdicion(false);
@@ -205,7 +188,6 @@ export default function Distritos() {
         navigate('/login');
         return;
       }
-
       const message = error.response?.data?.message;
       if (Array.isArray(message)) {
         setErrorFormulario(message.join(', '));
@@ -222,35 +204,32 @@ export default function Distritos() {
       setGuardando(false);
     }
   };
-
   // ============================
   // MODAL ELIMINAR
   // ============================
+  // Abre el modal para confirmar la eliminación.
   const abrirModalEliminar = (distrito: Distrito) => {
     setDistritoEliminar(distrito);
     setErrorEliminar('');
     setModalEliminarAbierto(true);
   };
-
+  // Cierra el modal de eliminación.
   const cerrarModalEliminar = () => {
     if (eliminando) return;
     setModalEliminarAbierto(false);
     setDistritoEliminar(null);
     setErrorEliminar('');
   };
-
+  // Elimina el distrito seleccionado.
   const confirmarEliminarDistrito = async () => {
     if (!distritoEliminar) return;
-
     try {
       setEliminando(true);
       setErrorEliminar('');
       const token = localStorage.getItem('token');
-
       await api.delete(`/distritos/${distritoEliminar.id_distrito}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       setModalEliminarAbierto(false);
       setDistritoEliminar(null);
       await cargarDistritos();
@@ -262,7 +241,6 @@ export default function Distritos() {
         navigate('/login');
         return;
       }
-
       const message = error.response?.data?.message;
       if (Array.isArray(message)) {
         setErrorEliminar(message.join(', '));
@@ -275,9 +253,9 @@ export default function Distritos() {
       setEliminando(false);
     }
   };
-
   // Cerrar modales con ESC
   useEffect(() => {
+    // Permite cerrar los modales con la tecla Escape.
     const manejarEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (modalEliminarAbierto) return cerrarModalEliminar();
@@ -286,16 +264,14 @@ export default function Distritos() {
     document.addEventListener('keydown', manejarEscape);
     return () => document.removeEventListener('keydown', manejarEscape);
   }, [modalEliminarAbierto, modalAbierto, guardando, eliminando]);
-
   return (
-    <div className="relative min-h-screen w-full font-sans antialiased text-white flex flex-col overflow-x-hidden">
-      
+    <div className="relative min-h-screen w-full font-sans antialiased text-white flex flex-col overflow-x-hidden lg:pl-[270px]">
+      <SidebarCatastro />
       {/* 1. IMAGEN DE FONDO FIJA */}
       <div
         className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${fondoGrecia})` }}
       />
-
       {/* 2. OVERLAY OSCURO */}
       <div
         className="fixed inset-0 z-0"
@@ -304,18 +280,15 @@ export default function Distritos() {
             'radial-gradient(circle at 12% 12%, rgba(5, 25, 36, 0.98) 0%, rgba(5, 25, 36, 0.88) 28%, transparent 58%), linear-gradient(180deg, rgba(6, 20, 28, 0.85) 0%, rgba(6, 20, 28, 0.93) 100%)',
         }}
       />
-
       {/* 3. FRANJA TRICOLOR INSTITUCIONAL */}
       <div className="fixed inset-x-0 top-0 z-50 grid h-1.5 grid-cols-[2.2fr_1fr_.7fr]">
         <span className="bg-[#315F73]" />
         <span className="bg-[#18843B]" />
         <span className="bg-[#D4112E]" />
       </div>
-
       {/* 4. CABECERA FLOTANTE OSCURA CON BOTÓN VOLVER */}
       <header className="relative z-30 w-full border-b border-white/10 bg-[#0B212D]/80 backdrop-blur-xl px-6 lg:px-12 py-3.5 shadow-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
-          
           {/* Lado izquierdo */}
           <div className="flex items-center gap-4">
             <img
@@ -323,9 +296,7 @@ export default function Distritos() {
               alt="Municipalidad de Grecia"
               className="h-11 w-auto object-contain drop-shadow-md"
             />
-            
             <div className="hidden h-9 w-[1px] bg-white/20 sm:block" />
-            
             <div>
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#86efac]">
                 SISTEMA DE CATASTRO
@@ -338,7 +309,6 @@ export default function Distritos() {
               </p>
             </div>
           </div>
-
           {/* Lado derecho */}
           <div className="flex flex-col items-end gap-2.5">
             <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3.5 py-1.5 backdrop-blur-md">
@@ -350,7 +320,6 @@ export default function Distritos() {
                 <p className="text-[10px] text-slate-300">rodriguezderek12@gmail.com</p>
               </div>
             </div>
-
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -359,7 +328,6 @@ export default function Distritos() {
               >
                 Volver al panel
               </button>
-
               <button
                 type="button"
                 onClick={() => {
@@ -376,15 +344,12 @@ export default function Distritos() {
               </button>
             </div>
           </div>
-
         </div>
       </header>
-
       {/* ====================================== */}
       {/* CONTENIDO PRINCIPAL */}
       {/* ====================================== */}
       <main className="relative z-20 mx-auto w-full max-w-7xl px-6 lg:px-12 py-8 flex-1">
-        
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-bold text-white tracking-tight">
@@ -402,7 +367,6 @@ export default function Distritos() {
             + Nuevo distrito
           </button>
         </div>
-
         {/* FILTROS DE BÚSQUEDA */}
         <div className="mb-8 rounded-2xl border border-white/10 bg-[#0c2330]/85 p-6 shadow-xl backdrop-blur-md">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -421,7 +385,6 @@ export default function Distritos() {
               Limpiar filtros
             </button>
           </div>
-
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-300">Nombre del distrito</label>
@@ -445,7 +408,6 @@ export default function Distritos() {
               />
             </div>
           </div>
-
           <div className="mt-5 border-t border-white/10 pt-4">
             <p className="text-sm text-slate-400">
               Mostrando <span className="font-bold text-white">{distritosFiltrados.length}</span>
@@ -453,14 +415,12 @@ export default function Distritos() {
             </p>
           </div>
         </div>
-
         {/* CARGANDO */}
         {cargando && (
           <div className="rounded-2xl border border-white/10 bg-[#0d222e]/85 p-8 text-center text-slate-300 backdrop-blur-md">
             Cargando distritos...
           </div>
         )}
-
         {/* ERROR */}
         {!cargando && error && (
           <div className="rounded-2xl border border-red-500/30 bg-red-900/40 p-6 backdrop-blur-md">
@@ -474,7 +434,6 @@ export default function Distritos() {
             </button>
           </div>
         )}
-
         {/* ====================================== */}
         {/* TABLA */}
         {/* ====================================== */}
@@ -495,7 +454,6 @@ export default function Distritos() {
                     </th>
                   </tr>
                 </thead>
-
                 <tbody>
                   {distritosFiltrados.length === 0 ? (
                     <tr>
@@ -541,7 +499,6 @@ export default function Distritos() {
                 </tbody>
               </table>
             </div>
-
             {/* PAGINACIÓN */}
             {distritosFiltrados.length > 0 && (
               <div className="flex flex-col gap-4 bg-[#0B212D]/90 border-t border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -551,7 +508,6 @@ export default function Distritos() {
                     <span className="font-bold text-white">{Math.min(indiceFinal, distritosFiltrados.length)}</span> de{' '}
                     <span className="font-bold text-white">{distritosFiltrados.length}</span> distritos
                   </p>
-
                   <div className="flex items-center gap-2">
                     <label className="text-sm text-slate-400">Registros por página:</label>
                     <select
@@ -565,7 +521,6 @@ export default function Distritos() {
                     </select>
                   </div>
                 </div>
-
                 <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
                   <button
                     type="button"
@@ -575,7 +530,6 @@ export default function Distritos() {
                   >
                     ← Anterior
                   </button>
-
                   {Array.from({ length: totalPaginas }, (_, indice) => indice + 1).map((pagina) => (
                     <button
                       key={pagina}
@@ -590,7 +544,6 @@ export default function Distritos() {
                       {pagina}
                     </button>
                   ))}
-
                   <button
                     type="button"
                     onClick={() => setPaginaActual((pagina) => Math.min(totalPaginas, pagina + 1))}
@@ -605,7 +558,6 @@ export default function Distritos() {
           </div>
         )}
       </main>
-
       {/* ====================================== */}
       {/* MODAL CREAR / EDITAR - GRANDE Y SIN DOBLE SCROLL */}
       {/* ====================================== */}
@@ -629,14 +581,12 @@ export default function Distritos() {
                 ✕
               </button>
             </div>
-
             <form onSubmit={guardarDistrito} className="p-10 flex-1 overflow-y-auto">
               {errorFormulario && (
                 <div className="mb-10 rounded-xl border border-red-500/30 bg-red-900/40 p-6 text-base font-semibold text-red-300">
                   {errorFormulario}
                 </div>
               )}
-
               <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
                 <div>
                   <label className="mb-3 block text-base font-bold text-slate-300">Nombre del distrito</label>
@@ -662,7 +612,6 @@ export default function Distritos() {
                   />
                 </div>
               </div>
-
               <div className="mt-12 flex justify-end gap-5 border-t border-white/10 pt-10 flex-shrink-0">
                 <button
                   type="button"
@@ -684,7 +633,6 @@ export default function Distritos() {
           </div>
         </div>
       )}
-
       {/* ====================================== */}
       {/* MODAL ELIMINAR - GRANDE Y SIN DOBLE SCROLL */}
       {/* ====================================== */}
@@ -695,21 +643,18 @@ export default function Distritos() {
               <h2 className="text-3xl font-black text-white tracking-tighter">Eliminar distrito</h2>
               <p className="mt-2 text-base text-slate-400">Esta acción eliminará el registro seleccionado de forma permanente.</p>
             </div>
-            
             <div className="p-10 flex-1 overflow-y-auto">
               <div className="rounded-2xl border border-red-500/30 bg-red-900/30 p-8 flex flex-col items-center justify-center text-center">
                 <p className="text-base text-red-300">¿Está seguro de que desea eliminar este distrito?</p>
                 <p className="mt-6 text-3xl font-black text-white tracking-tight">{distritoEliminar.nombre_distrito}</p>
                 <p className="mt-3 text-lg text-slate-400">Número de distrito: {distritoEliminar.numero_distrito}</p>
               </div>
-
               {errorEliminar && (
                 <div className="mt-8 rounded-xl border border-red-500/30 bg-red-900/50 p-6 text-base font-semibold text-red-300">
                   <p className="font-black text-lg text-red-300">No se puede eliminar el distrito</p>
                   <p className="mt-2 text-base text-red-400">{errorEliminar}</p>
                 </div>
               )}
-
               <div className="mt-12 flex justify-end gap-5 flex-shrink-0 pb-5">
                 <button
                   type="button"
@@ -732,7 +677,6 @@ export default function Distritos() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

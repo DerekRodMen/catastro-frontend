@@ -1,43 +1,50 @@
 import {
   useEffect,
+  useRef,
   useState,
   type FormEvent,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
-
+import WebMap from '@arcgis/core/WebMap';
+import MapView from '@arcgis/core/views/MapView';
+import Graphic from '@arcgis/core/Graphic';
+import Point from '@arcgis/core/geometry/Point';
+import SimpleMarkerSymbol from '@arcgis/core/symbols/SimpleMarkerSymbol';
+import Home from '@arcgis/core/widgets/Home';
+import Locate from '@arcgis/core/widgets/Locate';
+import LayerList from '@arcgis/core/widgets/LayerList';
+import Expand from '@arcgis/core/widgets/Expand';
+import '@arcgis/core/assets/esri/themes/light/main.css';
 import { api } from '../../services/api';
 import fondoGrecia from '../../assets/grecia-login.jpg';
 import logoMunicipalidad from '../../assets/logo-municipalidad-grecia.webp';
-
+import SidebarCatastro from '../../components/SidebarCatastro';
 interface Parque {
   id_parque: number;
   ubicacion: string;
+  latitud: number | string | null;
+  longitud: number | string | null;
   numero_finca: string;
   area: number;
   numero_plano: string;
   visado: string;
   estado: string;
-
   descripcion_inversion: string;
   inversion: number;
   fecha_inversion: string;
-
   inversiones?: {
     id_inversion?: number;
     descripcion_inversion: string;
     inversion: number;
     fecha_inversion: string;
   }[];
-
   id_distrito: number;
   id_encargado: number;
-
   distrito?: {
     id_distrito: number;
     nombre_distrito: string;
     numero_distrito: number;
   };
-
   encargado?: {
     id_encargado: number;
     entidad_encargada: string;
@@ -47,13 +54,11 @@ interface Parque {
     telefono_encargado: string;
   };
 }
-
 interface Distrito {
   id_distrito: number;
   nombre_distrito: string;
   numero_distrito: number;
 }
-
 interface Encargado {
   id_encargado: number;
   entidad_encargada: string;
@@ -62,7 +67,6 @@ interface Encargado {
   correo_encargado: string;
   telefono_encargado: string;
 }
-
 interface InversionMantenimiento {
   id_mantenimiento: number;
   nombre_mantenimiento: string;
@@ -71,10 +75,395 @@ interface InversionMantenimiento {
   fecha_mantenimiento: string;
   id_parque: number;
 }
-
+// ID del WebMap municipal utilizado en los visores de ArcGIS.
+const WEB_MAP_ID = '3cbc884187ce4abd8cbff1b4f698cd53';
+interface SelectorMapaProps {
+  latitud: number | null;
+  longitud: number | null;
+  numeroFinca: string;
+  onSeleccionar: (latitud: number, longitud: number) => void;
+}
+type EstadoBusquedaFinca =
+  | { tipo: 'inicial'; mensaje: string }
+  | { tipo: 'buscando'; mensaje: string }
+  | { tipo: 'encontrada'; mensaje: string }
+  | { tipo: 'no-encontrada'; mensaje: string }
+  | { tipo: 'error'; mensaje: string };
+// Selector de ubicación del parque mediante ArcGIS.
+function SelectorMapa({
+  latitud,
+  longitud,
+  numeroFinca,
+  onSeleccionar,
+}: SelectorMapaProps) {
+  const contenedorRef = useRef<HTMLDivElement | null>(null);
+  const vistaRef = useRef<MapView | null>(null);
+  const marcadorRef = useRef<Graphic | null>(null);
+  const onSeleccionarRef = useRef(onSeleccionar);
+  const busquedaActualRef = useRef(0);
+  const [estadoBusquedaFinca, setEstadoBusquedaFinca] =
+    useState<EstadoBusquedaFinca>({
+      tipo: 'inicial',
+      mensaje:
+        'Escriba el número de finca para localizarla automáticamente o haga clic en el mapa.',
+    });
+  useEffect(() => {
+    onSeleccionarRef.current = onSeleccionar;
+  }, [onSeleccionar]);
+  useEffect(() => {
+    if (!contenedorRef.current || vistaRef.current) return;
+    // Carga el WebMap municipal en el selector.
+    const mapa = new WebMap({
+      portalItem: { id: WEB_MAP_ID },
+    });
+    // Crea la vista interactiva del mapa.
+    const vista = new MapView({
+      container: contenedorRef.current,
+      map: mapa,
+      center: [-84.3123, 10.0731],
+      zoom: 14,
+      popupEnabled: false,
+      constraints: {
+        snapToZoom: false,
+      },
+    });
+    vistaRef.current = vista;
+    const home = new Home({ view: vista });
+    const locate = new Locate({ view: vista });
+    const layerList = new LayerList({ view: vista });
+    const expandCapas = new Expand({
+      view: vista,
+      content: layerList,
+      expandTooltip: 'Capas',
+      collapseTooltip: 'Cerrar capas',
+    });
+    vista.ui.add(home, 'top-left');
+    vista.ui.add(locate, 'top-left');
+    vista.ui.add(expandCapas, 'top-right');
+    // Permite seleccionar manualmente una ubicación en el mapa.
+    const manejarClick = vista.on('click', (event) => {
+      const punto = vista.toMap({ x: event.x, y: event.y });
+      if (!punto) return;
+      const latitudPunto = punto.latitude;
+      const longitudPunto = punto.longitude;
+      if (
+        latitudPunto == null ||
+        longitudPunto == null
+      ) {
+        return;
+      }
+      onSeleccionarRef.current(
+        Number(latitudPunto.toFixed(7)),
+        Number(longitudPunto.toFixed(7)),
+      );
+      setEstadoBusquedaFinca({
+        tipo: 'inicial',
+        mensaje: 'Ubicación seleccionada manualmente en el mapa.',
+      });
+    });
+    return () => {
+      manejarClick.remove();
+      vista.destroy();
+      vistaRef.current = null;
+      marcadorRef.current = null;
+    };
+  }, []);
+  useEffect(() => {
+    // Toma el número de finca ingresado para buscarlo en el mapa catastral.
+    const valor = numeroFinca.trim();
+    if (!valor) {
+      setEstadoBusquedaFinca({
+        tipo: 'inicial',
+        mensaje:
+          'Escriba el número de finca para localizarla automáticamente o haga clic en el mapa.',
+      });
+      return;
+    }
+    const idBusqueda = ++busquedaActualRef.current;
+    const temporizador = window.setTimeout(async () => {
+      const vista = vistaRef.current;
+      if (!vista) return;
+      setEstadoBusquedaFinca({
+        tipo: 'buscando',
+        mensaje: `Buscando finca ${valor} en el mapa catastral...`,
+      });
+      try {
+        await vista.when();
+        const webMap = vista.map as WebMap;
+        await webMap.loadAll();
+        // Localiza la capa catastral dentro del WebMap.
+        const capaMapaCatastral = webMap.allLayers.find((capa: any) =>
+          String(capa.title ?? '')
+            .trim()
+            .toUpperCase()
+            .startsWith('MAPA CATASTRAL'),
+        ) as any;
+        if (!capaMapaCatastral) {
+          if (idBusqueda !== busquedaActualRef.current) return;
+          setEstadoBusquedaFinca({
+            tipo: 'error',
+            mensaje: 'No se encontró la capa MAPA CATASTRAL en el WebMap.',
+          });
+          return;
+        }
+        await capaMapaCatastral.load();
+        const valorSeguro = valor.replace(/'/g, "''");
+        // Campos utilizados para localizar la finca en la capa catastral.
+        const camposBusqueda = [
+          'PRM_FINCA',
+          'PRM_IDENTIFICA',
+          'FOLIO',
+        ];
+        let featureEncontrada: any = null;
+        let campoEncontrado = '';
+        for (const campo of camposBusqueda) {
+          const query = capaMapaCatastral.createQuery();
+          query.where = `${campo} = '${valorSeguro}'`;
+          query.outFields = [
+            'PRM_FINCA',
+            'PRM_IDENTIFICA',
+            'PRM_PLANO',
+            'FOLIO',
+          ];
+          query.returnGeometry = true;
+          query.num = 1;
+          query.outSpatialReference = vista.spatialReference;
+          const resultado = await capaMapaCatastral.queryFeatures(query);
+          if (resultado.features.length > 0) {
+            featureEncontrada = resultado.features[0];
+            campoEncontrado = campo;
+            break;
+          }
+        }
+        if (idBusqueda !== busquedaActualRef.current) return;
+        if (!featureEncontrada?.geometry) {
+          setEstadoBusquedaFinca({
+            tipo: 'no-encontrada',
+            mensaje: `No se encontró ${valor} en PRM_FINCA, PRM_IDENTIFICA ni FOLIO. Puede seleccionar la ubicación manualmente.`,
+          });
+          return;
+        }
+        // Obtiene la geometría encontrada para calcular su centro.
+        const geometria: any = featureEncontrada.geometry;
+        const centro: Point | null =
+          geometria.type === 'polygon'
+            ? geometria.centroid
+            : geometria.type === 'point'
+              ? geometria
+              : geometria.extent?.center ?? null;
+        if (!centro) {
+          setEstadoBusquedaFinca({
+            tipo: 'error',
+            mensaje:
+              'La finca fue encontrada, pero no fue posible calcular su ubicación.',
+          });
+          return;
+        }
+        const latitudCentro = centro.latitude;
+        const longitudCentro = centro.longitude;
+        if (
+          latitudCentro == null ||
+          longitudCentro == null
+        ) {
+          setEstadoBusquedaFinca({
+            tipo: 'error',
+            mensaje:
+              'La finca fue encontrada, pero sus coordenadas no son válidas.',
+          });
+          return;
+        }
+        const latitudEncontrada = Number(latitudCentro.toFixed(7));
+        const longitudEncontrada = Number(longitudCentro.toFixed(7));
+        onSeleccionarRef.current(
+          latitudEncontrada,
+          longitudEncontrada,
+        );
+        await vista.goTo(
+          {
+            target: featureEncontrada.geometry,
+          },
+          {
+            animate: true,
+            duration: 700,
+          },
+        ).catch(() => undefined);
+        const atributos = featureEncontrada.attributes ?? {};
+        const finca =
+          atributos.PRM_FINCA ??
+          atributos.FOLIO ??
+          valor;
+        setEstadoBusquedaFinca({
+          tipo: 'encontrada',
+          mensaje: `Finca ${finca} localizada automáticamente (${campoEncontrado}). El marcador se colocó en el centro de la propiedad y puede cambiarlo haciendo clic en el mapa.`,
+        });
+      } catch (error) {
+        console.error('Error localizando la finca en ArcGIS:', error);
+        if (idBusqueda !== busquedaActualRef.current) return;
+        setEstadoBusquedaFinca({
+          tipo: 'error',
+          mensaje:
+            'No fue posible consultar el mapa catastral. Puede seleccionar la ubicación manualmente.',
+        });
+      }
+    }, 700);
+    return () => {
+      window.clearTimeout(temporizador);
+    };
+  }, [numeroFinca]);
+  useEffect(() => {
+    const vista = vistaRef.current;
+    if (!vista) return;
+    if (marcadorRef.current) {
+      vista.graphics.remove(marcadorRef.current);
+      marcadorRef.current = null;
+    }
+    if (latitud === null || longitud === null) return;
+    // Crea el punto utilizado para mostrar el marcador.
+    const punto = new Point({
+      latitude: latitud,
+      longitude: longitud,
+    });
+    const marcador = new Graphic({
+      geometry: punto,
+      symbol: new SimpleMarkerSymbol({
+        style: 'circle',
+        size: 18,
+        color: [24, 132, 59, 255],
+        outline: {
+          color: [255, 255, 255, 255],
+          width: 3,
+        },
+      }),
+    });
+    vista.graphics.add(marcador);
+    marcadorRef.current = marcador;
+    vista.goTo(
+      {
+        target: punto,
+        zoom: 17,
+      },
+      { animate: true },
+    ).catch(() => undefined);
+  }, [latitud, longitud]);
+  const claseEstado =
+    estadoBusquedaFinca.tipo === 'encontrada'
+      ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-200'
+      : estadoBusquedaFinca.tipo === 'no-encontrada' ||
+          estadoBusquedaFinca.tipo === 'error'
+        ? 'border-amber-500/25 bg-amber-500/10 text-amber-200'
+        : estadoBusquedaFinca.tipo === 'buscando'
+          ? 'border-cyan-500/25 bg-cyan-500/10 text-cyan-200'
+          : 'border-white/10 bg-white/5 text-slate-300';
+  return (
+    <div>
+      <div
+        ref={contenedorRef}
+        className="h-[300px] w-full sm:h-[340px]"
+      />
+      <div
+        className={`border-t px-4 py-3 text-xs font-medium leading-5 ${claseEstado}`}
+      >
+        {estadoBusquedaFinca.mensaje}
+      </div>
+    </div>
+  );
+}
+interface MapaInformacionArcgisProps {
+  latitud: number;
+  longitud: number;
+  solicitudRecentrar: number;
+}
+// Muestra la ubicación del parque dentro del modal de información.
+function MapaInformacionArcgis({
+  latitud,
+  longitud,
+  solicitudRecentrar,
+}: MapaInformacionArcgisProps) {
+  const contenedorRef = useRef<HTMLDivElement | null>(null);
+  const vistaRef = useRef<MapView | null>(null);
+  const marcadorRef = useRef<Graphic | null>(null);
+  useEffect(() => {
+    if (!contenedorRef.current) return;
+    const webMap = new WebMap({
+      portalItem: {
+        id: WEB_MAP_ID,
+      },
+    });
+    const vista = new MapView({
+      container: contenedorRef.current,
+      map: webMap,
+      center: [longitud, latitud],
+      zoom: 17,
+      popupEnabled: false,
+    });
+    vistaRef.current = vista;
+    const home = new Home({ view: vista });
+    const layerList = new LayerList({ view: vista });
+    const expandCapas = new Expand({
+      view: vista,
+      content: layerList,
+      expandTooltip: 'Capas',
+      collapseTooltip: 'Cerrar capas',
+    });
+    vista.ui.add(home, 'top-left');
+    vista.ui.add(expandCapas, 'top-right');
+    vista.when(() => {
+      const punto = new Point({
+        longitude: longitud,
+        latitude: latitud,
+      });
+      const marcador = new Graphic({
+        geometry: punto,
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle',
+          color: [24, 132, 59, 255],
+          size: 16,
+          outline: {
+            color: [255, 255, 255, 255],
+            width: 2,
+          },
+        }),
+      });
+      marcadorRef.current = marcador;
+      vista.graphics.add(marcador);
+    });
+    return () => {
+      vista.destroy();
+      vistaRef.current = null;
+      marcadorRef.current = null;
+    };
+  }, []);
+  useEffect(() => {
+    const vista = vistaRef.current;
+    if (!vista) return;
+    const punto = new Point({
+      longitude: longitud,
+      latitude: latitud,
+    });
+    if (marcadorRef.current) {
+      marcadorRef.current.geometry = punto;
+    }
+    vista.goTo(
+      {
+        center: [longitud, latitud],
+        zoom: 17,
+      },
+      {
+        animate: true,
+        duration: 500,
+      },
+    ).catch(() => undefined);
+  }, [latitud, longitud, solicitudRecentrar]);
+  return (
+    <div
+      ref={contenedorRef}
+      className="h-[340px] w-full"
+    />
+  );
+}
+// Componente principal para la gestión de parques.
 export default function Parques() {
   const navigate = useNavigate();
-
   // ============================================
   // DATOS
   // ============================================
@@ -83,7 +472,6 @@ export default function Parques() {
   const [encargados, setEncargados] = useState<Encargado[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
-
   // ============================================
   // FILTROS DE BÚSQUEDA
   // ============================================
@@ -93,7 +481,7 @@ export default function Parques() {
   const [filtroDistrito, setFiltroDistrito] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroEncargado, setFiltroEncargado] = useState('');
-
+  // Restablece todos los filtros de búsqueda.
   const limpiarFiltros = () => {
     setFiltroUbicacion('');
     setFiltroFinca('');
@@ -102,10 +490,10 @@ export default function Parques() {
     setFiltroEstado('');
     setFiltroEncargado('');
   };
-
+  // Normaliza texto para facilitar comparaciones y búsquedas.
   const normalizarTexto = (valor: string | null | undefined) =>
     (valor ?? '').toLowerCase().trim();
-
+  // Limita textos largos para mostrarlos en la tabla.
   const limitarTexto = (
     valor: string | number | null | undefined,
     maximo: number,
@@ -116,23 +504,22 @@ export default function Parques() {
     }
     return `${texto.slice(0, maximo)}…`;
   };
-
+  // Conserva únicamente números en los campos correspondientes.
   const sanitizarSoloNumeros = (valor: string) =>
     valor.replace(/\D/g, '').slice(0, 50);
-
+  // Valida y limita el formato del área del parque.
   const sanitizarArea = (valor: string) => {
     const normalizado = valor.replace(',', '.');
     const limpio = normalizado.replace(/[^0-9.]/g, '');
     const partes = limpio.split('.');
     const enteros = (partes[0] ?? '').slice(0, 10);
     const decimales = partes.slice(1).join('').slice(0, 2);
-
     if (partes.length > 1) {
       return `${enteros}.${decimales}`;
     }
     return enteros;
   };
-
+  // Aplica los filtros seleccionados al listado de parques.
   const parquesFiltrados = parques.filter((parque) => {
     const coincideUbicacion = normalizarTexto(parque.ubicacion).includes(normalizarTexto(filtroUbicacion));
     const coincideFinca = normalizarTexto(parque.numero_finca).includes(normalizarTexto(filtroFinca));
@@ -141,7 +528,6 @@ export default function Parques() {
       !filtroDistrito ||
       String(parque.distrito?.id_distrito ?? parque.id_distrito) === filtroDistrito;
     const coincideEstado = !filtroEstado || parque.estado === filtroEstado;
-
     const textoEncargado = normalizarTexto(
       [
         parque.encargado?.entidad_encargada,
@@ -149,9 +535,7 @@ export default function Parques() {
         parque.encargado?.cedula_juridica,
       ].filter(Boolean).join(' '),
     );
-
     const coincideEncargado = textoEncargado.includes(normalizarTexto(filtroEncargado));
-
     return (
       coincideUbicacion &&
       coincideFinca &&
@@ -161,42 +545,35 @@ export default function Parques() {
       coincideEncargado
     );
   });
-
   // ============================================
   // PAGINACIÓN
   // ============================================
   const [paginaActual, setPaginaActual] = useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
-
   const totalRegistrosFiltrados = parquesFiltrados.length;
   const totalPaginas = Math.max(
     1,
     Math.ceil(totalRegistrosFiltrados / registrosPorPagina),
   );
-
   const indiceInicial = (paginaActual - 1) * registrosPorPagina;
   const indiceFinal = Math.min(
     indiceInicial + registrosPorPagina,
     totalRegistrosFiltrados,
   );
-
   const parquesPaginados = parquesFiltrados.slice(
     indiceInicial,
     indiceFinal,
   );
-
   const paginasVisibles = (() => {
     const paginas: number[] = [];
     const inicio = Math.max(1, paginaActual - 2);
     const fin = Math.min(totalPaginas, inicio + 4);
     const inicioAjustado = Math.max(1, fin - 4);
-
     for (let pagina = inicioAjustado; pagina <= fin; pagina += 1) {
       paginas.push(pagina);
     }
     return paginas;
   })();
-
   const hayFiltrosActivos = Boolean(
     filtroUbicacion ||
     filtroFinca ||
@@ -205,7 +582,6 @@ export default function Parques() {
     filtroEstado ||
     filtroEncargado,
   );
-
   // ============================================
   // MODALES (Estados y Lógica de Bloqueo de Fondo)
   // ============================================
@@ -214,25 +590,22 @@ export default function Parques() {
   const [errorFormulario, setErrorFormulario] = useState('');
   const [modoEdicion, setModoEdicion] = useState(false);
   const [idParqueEditando, setIdParqueEditando] = useState<number | null>(null);
-
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false);
   const [parqueEliminar, setParqueEliminar] = useState<Parque | null>(null);
   const [eliminando, setEliminando] = useState(false);
   const [errorEliminar, setErrorEliminar] = useState('');
-
   const [modalEncargadoAbierto, setModalEncargadoAbierto] = useState(false);
   const [encargadoVer, setEncargadoVer] = useState<Parque['encargado'] | null>(null);
-
   const [modalInformacionAbierto, setModalInformacionAbierto] = useState(false);
   const [parqueVer, setParqueVer] = useState<Parque | null>(null);
-
+  const [solicitudRecentrarMapa, setSolicitudRecentrarMapa] = useState(0);
   const [modalInversionAbierto, setModalInversionAbierto] = useState(false);
   const [parqueInversion, setParqueInversion] = useState<Parque | null>(null);
   const [inversionesParque, setInversionesParque] = useState<InversionMantenimiento[]>([]);
   const [cargandoInversiones, setCargandoInversiones] = useState(false);
   const [errorInversiones, setErrorInversiones] = useState('');
-
   // Lógica para bloquear el desplazamiento del fondo cuando un modal está abierto
+  // Indica si alguno de los modales está abierto.
   const unModalEstaAbierto = Boolean(
     modalAbierto ||
     modalEliminarAbierto ||
@@ -240,24 +613,23 @@ export default function Parques() {
     modalInformacionAbierto ||
     modalInversionAbierto
   );
-
   useEffect(() => {
     if (unModalEstaAbierto) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = ''; // Restablecer al valor predeterminado
     }
-
     // Función de limpieza para asegurar que el desplazamiento se restablezca cuando el componente se desmonte o si el estado cambia (por ejemplo, cuando se cierra un modal)
     return () => {
       document.body.style.overflow = '';
     };
   }, [unModalEstaAbierto]);
-
   // ============================================
   // FORMULARIO
   // ============================================
   const [ubicacion, setUbicacion] = useState('');
+  const [latitud, setLatitud] = useState<number | null>(null);
+  const [longitud, setLongitud] = useState<number | null>(null);
   const [numeroFinca, setNumeroFinca] = useState('');
   const [area, setArea] = useState('');
   const [numeroPlano, setNumeroPlano] = useState('');
@@ -265,15 +637,12 @@ export default function Parques() {
   const [estado, setEstado] = useState('');
   const [idDistrito, setIdDistrito] = useState('');
   const [idEncargado, setIdEncargado] = useState('');
-
   const [busquedaDistrito, setBusquedaDistrito] = useState('');
   const [busquedaEncargado, setBusquedaEncargado] = useState('');
-
   const distritosFiltradosFormulario = distritos.filter((distrito) =>
     normalizarTexto(distrito.nombre_distrito).includes(normalizarTexto(busquedaDistrito)) ||
     String(distrito.numero_distrito).includes(busquedaDistrito.trim()),
   );
-
   const encargadosFiltradosFormulario = encargados.filter((encargado) => {
     const texto = normalizarTexto(
       [
@@ -284,10 +653,10 @@ export default function Parques() {
     );
     return texto.includes(normalizarTexto(busquedaEncargado));
   });
-
   // ============================================
   // CARGAS (API)
   // ============================================
+  // Carga los parques registrados desde la API.
   const cargarParques = async () => {
     try {
       setCargando(true);
@@ -301,7 +670,7 @@ export default function Parques() {
       setCargando(false);
     }
   };
-
+  // Carga los distritos registrados desde la API.
   const cargarDistritos = async () => {
     try {
       const response = await api.get('/distritos');
@@ -310,7 +679,7 @@ export default function Parques() {
       console.error('Error cargando distritos:', error);
     }
   };
-
+  // Carga los encargados registrados desde la API.
   const cargarEncargados = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -333,13 +702,11 @@ export default function Parques() {
       }
     }
   };
-
   useEffect(() => {
     cargarParques();
     cargarDistritos();
     cargarEncargados();
   }, []);
-
   useEffect(() => {
     setPaginaActual(1);
   }, [
@@ -351,18 +718,19 @@ export default function Parques() {
     filtroEncargado,
     registrosPorPagina,
   ]);
-
   useEffect(() => {
     if (paginaActual > totalPaginas) {
       setPaginaActual(totalPaginas);
     }
   }, [paginaActual, totalPaginas]);
-
   // ============================================
   // MANEJO DE MODALES Y FORMULARIOS
   // ============================================
+  // Limpia todos los campos del formulario de parque.
   const limpiarFormulario = () => {
     setUbicacion('');
+    setLatitud(null);
+    setLongitud(null);
     setNumeroFinca('');
     setArea('');
     setNumeroPlano('');
@@ -374,16 +742,18 @@ export default function Parques() {
     setBusquedaEncargado('');
     setErrorFormulario('');
   };
-
+  // Abre el formulario para registrar un nuevo parque.
   const abrirModalCrear = () => {
     limpiarFormulario();
     setModoEdicion(false);
     setIdParqueEditando(null);
     setModalAbierto(true);
   };
-
+  // Carga los datos del parque seleccionado para editarlo.
   const abrirModalEditar = (parque: Parque) => {
     setUbicacion(parque.ubicacion ?? '');
+    setLatitud(parque.latitud !== null && parque.latitud !== undefined ? Number(parque.latitud) : null);
+    setLongitud(parque.longitud !== null && parque.longitud !== undefined ? Number(parque.longitud) : null);
     setNumeroFinca(parque.numero_finca ?? '');
     setArea(String(parque.area ?? ''));
     setNumeroPlano(parque.numero_plano ?? '');
@@ -408,7 +778,7 @@ export default function Parques() {
     setErrorFormulario('');
     setModalAbierto(true);
   };
-
+  // Cierra el formulario y restablece sus datos.
   const cerrarModal = () => {
     if (guardando) return;
     setModalAbierto(false);
@@ -416,43 +786,39 @@ export default function Parques() {
     setModoEdicion(false);
     setIdParqueEditando(null);
   };
-
+  // Registra o actualiza un parque.
   const guardarParque = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setGuardando(true);
     setErrorFormulario('');
-
     const fincaNormalizada = numeroFinca.trim();
     const planoNormalizado = numeroPlano.trim().toLowerCase();
-
     const fincaDuplicada = parques.some(
       (parque) =>
         parque.numero_finca.trim() === fincaNormalizada &&
         parque.id_parque !== idParqueEditando,
     );
-
     if (fincaDuplicada) {
       setErrorFormulario('Ya existe un parque registrado con este número de finca.');
       setGuardando(false);
       return;
     }
-
     const planoDuplicado = parques.some(
       (parque) =>
         parque.numero_plano.trim().toLowerCase() === planoNormalizado &&
         parque.id_parque !== idParqueEditando,
     );
-
     if (planoDuplicado) {
       setErrorFormulario('Ya existe un parque registrado con este número de plano.');
       setGuardando(false);
       return;
     }
-
     try {
       const token = localStorage.getItem('token');
       const datosParque = {
         ubicacion: ubicacion.trim(),
+        latitud,
+        longitud,
         numero_finca: numeroFinca.trim(),
         area: Number(area),
         numero_plano: numeroPlano.trim(),
@@ -464,7 +830,6 @@ export default function Parques() {
         id_distrito: Number(idDistrito),
         id_encargado: Number(idEncargado),
       };
-
       if (modoEdicion && idParqueEditando !== null) {
         await api.patch(`/parques/${idParqueEditando}`, datosParque, {
           headers: { Authorization: `Bearer ${token}` },
@@ -474,7 +839,6 @@ export default function Parques() {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
-
       setModalAbierto(false);
       limpiarFormulario();
       setModoEdicion(false);
@@ -502,20 +866,20 @@ export default function Parques() {
       setGuardando(false);
     }
   };
-
+  // Abre el modal para confirmar la eliminación.
   const abrirModalEliminar = (parque: Parque) => {
     setParqueEliminar(parque);
     setErrorEliminar('');
     setModalEliminarAbierto(true);
   };
-
+  // Cierra el modal de eliminación.
   const cerrarModalEliminar = () => {
     if (eliminando) return;
     setModalEliminarAbierto(false);
     setParqueEliminar(null);
     setErrorEliminar('');
   };
-
+  // Elimina el parque seleccionado.
   const confirmarEliminarParque = async () => {
     if (!parqueEliminar) return;
     try {
@@ -548,41 +912,40 @@ export default function Parques() {
       setEliminando(false);
     }
   };
-
+  // Abre el modal con la información del encargado.
   const abrirModalEncargado = (parque: Parque) => {
     if (!parque.encargado) return;
     setEncargadoVer(parque.encargado);
     setModalEncargadoAbierto(true);
   };
-
+  // Cierra el modal de información del encargado.
   const cerrarModalEncargado = () => {
     setModalEncargadoAbierto(false);
     setEncargadoVer(null);
   };
-
+  // Abre el modal con la información completa del parque.
   const abrirModalInformacion = (parque: Parque) => {
     setParqueVer(parque);
+    setSolicitudRecentrarMapa(0);
     setModalInformacionAbierto(true);
   };
-
+  // Cierra el modal de información del parque.
   const cerrarModalInformacion = () => {
     setModalInformacionAbierto(false);
     setParqueVer(null);
   };
-
+  // Carga y muestra las inversiones asociadas al parque.
   const abrirModalInversion = async (parque: Parque) => {
     setParqueInversion(parque);
     setInversionesParque([]);
     setErrorInversiones('');
     setModalInversionAbierto(true);
-
     try {
       setCargandoInversiones(true);
       const token = localStorage.getItem('token');
       const response = await api.get('/mantenimientos', {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-
       const mantenimientos: InversionMantenimiento[] = Array.isArray(response.data) ? response.data : [];
       const inversiones = mantenimientos
         .filter(
@@ -596,7 +959,6 @@ export default function Parques() {
             new Date(b.fecha_mantenimiento).getTime() -
             new Date(a.fecha_mantenimiento).getTime(),
         );
-
       setInversionesParque(inversiones);
     } catch (error: any) {
       console.error('Error cargando inversiones del parque:', error);
@@ -613,7 +975,7 @@ export default function Parques() {
       setCargandoInversiones(false);
     }
   };
-
+  // Cierra el modal de inversiones.
   const cerrarModalInversion = () => {
     setModalInversionAbierto(false);
     setParqueInversion(null);
@@ -621,7 +983,7 @@ export default function Parques() {
     setErrorInversiones('');
     setCargandoInversiones(false);
   };
-
+  // Formatea montos en colones costarricenses.
   const formatearColones = (valor: number | string | null | undefined) => {
     const numero = Number(valor ?? 0);
     return new Intl.NumberFormat('es-CR', {
@@ -631,21 +993,21 @@ export default function Parques() {
       maximumFractionDigits: 2,
     }).format(Number.isFinite(numero) ? numero : 0);
   };
-
+  // Formatea las fechas de inversión para mostrarlas.
   const formatearFechaInversion = (fecha: string | null | undefined) => {
     if (!fecha) return 'Fecha no registrada';
     const partes = fecha.substring(0, 10).split('-');
     if (partes.length !== 3) return fecha;
     return `${partes[2]}/${partes[1]}/${partes[0]}`;
   };
-
+  // Calcula el total invertido en mantenimientos del parque.
   const inversionTotalParque = inversionesParque.reduce(
     (total, mantenimiento) => total + Number(mantenimiento.inversion ?? 0),
     0,
   );
-
   // Cerrar modales con ESC
   useEffect(() => {
+    // Permite cerrar los modales con la tecla Escape.
     const manejarEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (modalInversionAbierto) return cerrarModalInversion();
@@ -665,16 +1027,14 @@ export default function Parques() {
     guardando,
     eliminando,
   ]);
-
   return (
-    <div className="relative min-h-screen w-full font-sans antialiased text-white flex flex-col overflow-x-hidden">
-      
+    <div className="relative min-h-screen w-full font-sans antialiased text-white flex flex-col overflow-x-hidden lg:pl-[270px]">
+      <SidebarCatastro />
       {/* 1. IMAGEN DE FONDO FIJA */}
       <div
         className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${fondoGrecia})` }}
       />
-
       {/* 2. OVERLAY OSCURO */}
       <div
         className="fixed inset-0 z-0"
@@ -683,18 +1043,15 @@ export default function Parques() {
             'radial-gradient(circle at 12% 12%, rgba(5, 25, 36, 0.98) 0%, rgba(5, 25, 36, 0.88) 28%, transparent 58%), linear-gradient(180deg, rgba(6, 20, 28, 0.85) 0%, rgba(6, 20, 28, 0.93) 100%)',
         }}
       />
-
       {/* 3. FRANJA TRICOLOR INSTITUCIONAL */}
       <div className="fixed inset-x-0 top-0 z-50 grid h-1.5 grid-cols-[2.2fr_1fr_.7fr]">
         <span className="bg-[#315F73]" />
         <span className="bg-[#18843B]" />
         <span className="bg-[#D4112E]" />
       </div>
-
       {/* 4. CABECERA FLOTANTE OSCURA CON BOTÓN VOLVER TEXTUAL */}
       <header className="relative z-30 w-full border-b border-white/10 bg-[#0B212D]/80 backdrop-blur-xl px-6 lg:px-12 py-3.5 shadow-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
-          
           {/* Lado izquierdo */}
           <div className="flex items-center gap-4">
             <img
@@ -702,9 +1059,7 @@ export default function Parques() {
               alt="Municipalidad de Grecia"
               className="h-11 w-auto object-contain drop-shadow-md"
             />
-            
             <div className="hidden h-9 w-[1px] bg-white/20 sm:block" />
-            
             <div>
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#86efac]">
                 SISTEMA DE CATASTRO
@@ -717,7 +1072,6 @@ export default function Parques() {
               </p>
             </div>
           </div>
-
           {/* Lado derecho con Botón Volver Textual (Turn 7) */}
           <div className="flex flex-col items-end gap-2.5">
             <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3.5 py-1.5 backdrop-blur-md">
@@ -729,7 +1083,6 @@ export default function Parques() {
                 <p className="text-[10px] text-slate-300">rodriguezderek12@gmail.com</p>
               </div>
             </div>
-
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -738,7 +1091,6 @@ export default function Parques() {
               >
                 Volver al panel
               </button>
-
               <button
                 type="button"
                 onClick={() => {
@@ -755,15 +1107,12 @@ export default function Parques() {
               </button>
             </div>
           </div>
-
         </div>
       </header>
-
       {/* ====================================== */}
       {/* CONTENIDO PRINCIPAL */}
       {/* ====================================== */}
       <main className="relative z-20 mx-auto w-full max-w-7xl px-6 lg:px-12 py-8 flex-1">
-        
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-bold text-white tracking-tight">
@@ -781,7 +1130,6 @@ export default function Parques() {
             + Nuevo parque
           </button>
         </div>
-
         {/* FILTROS DE BÚSQUEDA */}
         <div className="mb-8 rounded-2xl border border-white/10 bg-[#0c2330]/85 p-6 shadow-xl backdrop-blur-md">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -800,7 +1148,6 @@ export default function Parques() {
               Limpiar filtros
             </button>
           </div>
-
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-300">Ubicación</label>
@@ -872,7 +1219,6 @@ export default function Parques() {
               />
             </div>
           </div>
-
           <div className="mt-5 border-t border-white/10 pt-4">
             <p className="text-sm text-slate-400">
               Mostrando <span className="font-bold text-white">{parquesFiltrados.length}</span>
@@ -880,14 +1226,12 @@ export default function Parques() {
             </p>
           </div>
         </div>
-
         {/* CARGANDO */}
         {cargando && (
           <div className="rounded-2xl border border-white/10 bg-[#0d222e]/85 p-8 text-center text-slate-300 backdrop-blur-md">
             Cargando parques...
           </div>
         )}
-
         {/* ERROR */}
         {!cargando && error && (
           <div className="rounded-2xl border border-red-500/30 bg-red-900/40 p-6 backdrop-blur-md">
@@ -901,7 +1245,6 @@ export default function Parques() {
             </button>
           </div>
         )}
-
         {/* ====================================== */}
         {/* TABLA */}
         {/* ====================================== */}
@@ -921,7 +1264,6 @@ export default function Parques() {
                     ))}
                   </tr>
                 </thead>
-
                 <tbody>
                   {parquesFiltrados.length === 0 ? (
                     <tr>
@@ -1003,7 +1345,7 @@ export default function Parques() {
                               onClick={() => abrirModalInformacion(parque)}
                               className="rounded-md bg-indigo-500/20 border border-indigo-500/30 px-2.5 py-1.5 text-xs font-bold text-indigo-300 hover:bg-indigo-500/30 transition-colors"
                             >
-                              Info
+                              Información
                             </button>
                             <button
                               type="button"
@@ -1035,7 +1377,6 @@ export default function Parques() {
                 </tbody>
               </table>
             </div>
-
             {/* PAGINACIÓN */}
             {parquesFiltrados.length > 0 && (
               <div className="flex flex-col gap-4 bg-[#0B212D]/90 border-t border-white/10 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
@@ -1045,7 +1386,6 @@ export default function Parques() {
                     <span className="font-bold text-white">{indiceFinal}</span> de{' '}
                     <span className="font-bold text-white">{totalRegistrosFiltrados}</span> parques
                   </p>
-
                   <div className="flex items-center gap-2">
                     <label htmlFor="registrosPorPaginaParques" className="text-sm text-slate-400">
                       Registros por página:
@@ -1062,7 +1402,6 @@ export default function Parques() {
                     </select>
                   </div>
                 </div>
-
                 <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
                   <button
                     type="button"
@@ -1100,190 +1439,293 @@ export default function Parques() {
           </div>
         )}
       </main>
-
       {/* ====================================== */}
-      {/* MODAL CREAR / EDITAR - SIN DOBLE BARRA */}
+      {/* MODAL CREAR / EDITAR */}
       {/* ====================================== */}
       {modalAbierto && (
-        <div onClick={cerrarModal} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-7xl h-[85vh] flex flex-col rounded-2xl border border-white/10 bg-[#0B212D] shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-white/10 px-10 py-7 flex-shrink-0">
-              <div>
-                <h2 className="text-3xl font-black text-white tracking-tighter">
+        <div
+          onClick={cerrarModal}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm sm:p-6"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0B212D] shadow-2xl"
+          >
+            {/* Encabezado */}
+            <div className="flex flex-shrink-0 items-start justify-between border-b border-white/10 px-6 py-5 sm:px-8">
+              <div className="pr-6">
+                <p className="mb-1 text-[11px] font-extrabold uppercase tracking-[0.18em] text-emerald-400">
+                  Gestión de parques
+                </p>
+                <h2 className="text-2xl font-black tracking-tight text-white">
                   {modoEdicion ? 'Editar parque' : 'Nuevo parque'}
                 </h2>
-                <p className="mt-2 text-base text-slate-400">
-                  {modoEdicion ? 'Modifique la información detallada del parque seleccionado.' : 'Complete la información completa para registrar el parque en el sistema.'}
+                <p className="mt-1 text-sm text-slate-400">
+                  {modoEdicion
+                    ? 'Modifique los datos del parque y actualice su ubicación geográfica.'
+                    : 'Complete los datos y seleccione la ubicación del parque en el mapa.'}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={cerrarModal}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors text-xl font-bold"
+                disabled={guardando}
+                aria-label="Cerrar"
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-lg font-bold text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
               >
                 ✕
               </button>
             </div>
-
-            <form onSubmit={guardarParque} className="p-10 flex-1 overflow-y-auto">
-              {errorFormulario && (
-                <div className="mb-10 rounded-xl border border-red-500/30 bg-red-900/40 p-6 text-base font-semibold text-red-300">
-                  {errorFormulario}
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-                <div>
-                  <label className="mb-3 block text-base font-bold text-slate-300">Ubicación</label>
-                  <input
-                    type="text"
-                    value={ubicacion}
-                    onChange={(e) => setUbicacion(e.target.value)}
-                    required
-                    maxLength={200}
-                    placeholder="Ej: Barrio Latino, Grecia Centro"
-                    className="w-full rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="mb-3 block text-base font-bold text-slate-300">Número de finca</label>
-                  <input
-                    type="text"
-                    value={numeroFinca}
-                    onChange={(e) => setNumeroFinca(sanitizarSoloNumeros(e.target.value))}
-                    required
-                    maxLength={50}
-                    inputMode="numeric"
-                    placeholder="Ej: 2123456000"
-                    className="w-full rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="mb-3 block text-base font-bold text-slate-300">Área (m²)</label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={area}
-                    onChange={(e) => setArea(sanitizarArea(e.target.value))}
-                    required
-                    maxLength={13}
-                    placeholder="Ej: 2500.50"
-                    className="w-full rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="mb-3 block text-base font-bold text-slate-300">Número de plano</label>
-                  <input
-                    type="text"
-                    value={numeroPlano}
-                    onChange={(e) => setNumeroPlano(e.target.value)}
-                    required
-                    maxLength={50}
-                    placeholder="Ej: A-1234567-2026"
-                    className="w-full rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="mb-3 block text-base font-bold text-slate-300">Visado</label>
-                  <select
-                    value={visado}
-                    onChange={(e) => setVisado(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white focus:border-emerald-500 focus:outline-none"
-                  >
-                    <option value="" className="bg-[#0B212D]">Seleccione el visado</option>
-                    <option value="Aprobado" className="bg-[#0B212D]">Aprobado</option>
-                    <option value="Solicitado" className="bg-[#0B212D]">Solicitado</option>
-                    <option value="No tiene" className="bg-[#0B212D]">No tiene</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-3 block text-base font-bold text-slate-300">Estado</label>
-                  <select
-                    value={estado}
-                    onChange={(e) => setEstado(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white focus:border-emerald-500 focus:outline-none"
-                  >
-                    <option value="" className="bg-[#0B212D]">Seleccione el estado</option>
-                    <option value="Bueno" className="bg-[#0B212D]">Bueno</option>
-                    <option value="Regular" className="bg-[#0B212D]">Regular</option>
-                    <option value="Malo" className="bg-[#0B212D]">Malo</option>
-                    <option value="Vacío" className="bg-[#0B212D]">Vacío</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-3 block text-base font-bold text-slate-300">Distrito</label>
-                  <input
-                    type="text"
-                    value={busquedaDistrito}
-                    onChange={(e) => setBusquedaDistrito(e.target.value)}
-                    placeholder="Buscar distrito..."
-                    className="mb-4 w-full rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                  <select
-                    value={idDistrito}
-                    onChange={(e) => setIdDistrito(e.target.value)}
-                    required
-                    size={20}
-                    className="w-full h-[300px] overflow-y-auto rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white"
-                  >
-                    <option value="" className="text-slate-400">Seleccione un distrito</option>
-                    {distritosFiltradosFormulario.map((distrito) => (
-                      <option key={distrito.id_distrito} value={distrito.id_distrito} className="py-1">
-                        {distrito.nombre_distrito}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-3 block text-base font-bold text-slate-300">Entidad encargada</label>
-                  <input
-                    type="text"
-                    value={busquedaEncargado}
-                    onChange={(e) => setBusquedaEncargado(e.target.value)}
-                    placeholder="Buscar entidad..."
-                    className="mb-4 w-full rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white focus:border-emerald-500 focus:outline-none"
-                  />
-                  <select
-                    value={idEncargado}
-                    onChange={(e) => setIdEncargado(e.target.value)}
-                    required
-                    size={20}
-                    className="w-full h-[300px] overflow-y-auto rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white"
-                  >
-                    <option value="" className="text-slate-400">Seleccione una entidad</option>
-                    {encargadosFiltradosFormulario.map((encargado) => (
-                      <option key={encargado.id_encargado} value={encargado.id_encargado} className="py-1">
-                        {encargado.entidad_encargada} — {encargado.representante_legal}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            <form onSubmit={guardarParque} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8">
+                {errorFormulario && (
+                  <div className="mb-6 rounded-xl border border-red-500/30 bg-red-950/40 px-4 py-3 text-sm font-semibold text-red-300">
+                    {errorFormulario}
+                  </div>
+                )}
+                {/* Datos generales */}
+                <section>
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/15 text-sm font-black text-sky-300">
+                      1
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white">Información general</h3>
+                      <p className="text-xs text-slate-400">Datos principales de identificación del parque.</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                      <label className="mb-2 block text-sm font-semibold text-slate-300">
+                        Ubicación
+                      </label>
+                      <input
+                        type="text"
+                        value={ubicacion}
+                        onChange={(e) => setUbicacion(e.target.value)}
+                        required
+                        maxLength={200}
+                        placeholder="Ej: Barrio Latino, Grecia Centro"
+                        className="w-full rounded-xl border border-white/15 bg-[#071923] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-300">
+                        Número de finca
+                      </label>
+                      <input
+                        type="text"
+                        value={numeroFinca}
+                        onChange={(e) => setNumeroFinca(sanitizarSoloNumeros(e.target.value))}
+                        required
+                        maxLength={50}
+                        inputMode="numeric"
+                        placeholder="Ej: 2123456000"
+                        className="w-full rounded-xl border border-white/15 bg-[#071923] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-300">
+                        Área (m²)
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={area}
+                        onChange={(e) => setArea(sanitizarArea(e.target.value))}
+                        required
+                        maxLength={13}
+                        placeholder="Ej: 2500.50"
+                        className="w-full rounded-xl border border-white/15 bg-[#071923] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-300">
+                        Número de plano
+                      </label>
+                      <input
+                        type="text"
+                        value={numeroPlano}
+                        onChange={(e) => setNumeroPlano(e.target.value)}
+                        required
+                        maxLength={50}
+                        placeholder="Ej: A-1234567-2026"
+                        className="w-full rounded-xl border border-white/15 bg-[#071923] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-300">
+                        Visado
+                      </label>
+                      <select
+                        value={visado}
+                        onChange={(e) => setVisado(e.target.value)}
+                        required
+                        className="w-full rounded-xl border border-white/15 bg-[#071923] px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-500"
+                      >
+                        <option value="" className="bg-[#0B212D]">Seleccione el visado</option>
+                        <option value="Aprobado" className="bg-[#0B212D]">Aprobado</option>
+                        <option value="Solicitado" className="bg-[#0B212D]">Solicitado</option>
+                        <option value="No tiene" className="bg-[#0B212D]">No tiene</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-300">
+                        Estado
+                      </label>
+                      <select
+                        value={estado}
+                        onChange={(e) => setEstado(e.target.value)}
+                        required
+                        className="w-full rounded-xl border border-white/15 bg-[#071923] px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-500"
+                      >
+                        <option value="" className="bg-[#0B212D]">Seleccione el estado</option>
+                        <option value="Bueno" className="bg-[#0B212D]">Bueno</option>
+                        <option value="Regular" className="bg-[#0B212D]">Regular</option>
+                        <option value="Malo" className="bg-[#0B212D]">Malo</option>
+                        <option value="Vacío" className="bg-[#0B212D]">Vacío</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-300">
+                        Distrito
+                      </label>
+                      <input
+                        type="text"
+                        value={busquedaDistrito}
+                        onChange={(e) => setBusquedaDistrito(e.target.value)}
+                        placeholder="Buscar distrito..."
+                        className="mb-2 w-full rounded-xl border border-white/15 bg-[#071923] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-500"
+                      />
+                      <select
+                        value={idDistrito}
+                        onChange={(e) => setIdDistrito(e.target.value)}
+                        required
+                        className="w-full rounded-xl border border-white/15 bg-[#071923] px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-500"
+                      >
+                        <option value="" className="bg-[#0B212D]">Seleccione un distrito</option>
+                        {distritosFiltradosFormulario.map((distrito) => (
+                          <option
+                            key={distrito.id_distrito}
+                            value={distrito.id_distrito}
+                            className="bg-[#0B212D]"
+                          >
+                            {distrito.nombre_distrito}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-300">
+                        Entidad encargada
+                      </label>
+                      <input
+                        type="text"
+                        value={busquedaEncargado}
+                        onChange={(e) => setBusquedaEncargado(e.target.value)}
+                        placeholder="Buscar entidad o representante..."
+                        className="mb-2 w-full rounded-xl border border-white/15 bg-[#071923] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-500"
+                      />
+                      <select
+                        value={idEncargado}
+                        onChange={(e) => setIdEncargado(e.target.value)}
+                        required
+                        className="w-full rounded-xl border border-white/15 bg-[#071923] px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-500"
+                      >
+                        <option value="" className="bg-[#0B212D]">Seleccione una entidad</option>
+                        {encargadosFiltradosFormulario.map((encargado) => (
+                          <option
+                            key={encargado.id_encargado}
+                            value={encargado.id_encargado}
+                            className="bg-[#0B212D]"
+                          >
+                            {encargado.entidad_encargada} — {encargado.representante_legal}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </section>
+                {/* Ubicación geográfica */}
+                <section className="mt-7 border-t border-white/10 pt-6">
+                  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-sm font-black text-emerald-300">
+                        2
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-white">Ubicación geográfica</h3>
+                        <p className="text-xs text-slate-400">
+                          Escriba el número de finca para localizarla automáticamente o haga clic en el mapa para ajustar el punto.
+                        </p>
+                      </div>
+                    </div>
+                    {latitud !== null && longitud !== null && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLatitud(null);
+                          setLongitud(null);
+                        }}
+                        className="self-start rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300 transition hover:bg-red-500/20 sm:self-auto"
+                      >
+                        Quitar ubicación
+                      </button>
+                    )}
+                  </div>
+                  <div className="overflow-hidden rounded-xl border border-white/15 bg-[#071923] shadow-inner">
+                    <SelectorMapa
+                      latitud={latitud}
+                      longitud={longitud}
+                      numeroFinca={numeroFinca}
+                      onSeleccionar={(lat, lng) => {
+                        setLatitud(lat);
+                        setLongitud(lng);
+                      }}
+                    />
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                      <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Latitud</span>
+                      <span className="font-mono text-sm font-bold text-white">
+                        {latitud !== null ? latitud.toFixed(7) : 'Sin seleccionar'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                      <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Longitud</span>
+                      <span className="font-mono text-sm font-bold text-white">
+                        {longitud !== null ? longitud.toFixed(7) : 'Sin seleccionar'}
+                      </span>
+                    </div>
+                  </div>
+                </section>
               </div>
-
-              <div className="mt-12 flex justify-end gap-5 border-t border-white/10 pt-10 flex-shrink-0">
+              {/* Acciones fijas */}
+              <div className="flex flex-shrink-0 items-center justify-end gap-3 border-t border-white/10 bg-[#091D27] px-6 py-4 sm:px-8">
                 <button
                   type="button"
                   onClick={cerrarModal}
                   disabled={guardando}
-                  className="rounded-xl bg-white/10 px-8 py-3 text-base font-bold text-white hover:bg-white/20 disabled:opacity-50 transition-colors"
+                  className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-bold text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={guardando}
-                  className="rounded-xl bg-[#315F73] px-8 py-3 text-base font-bold text-white hover:bg-[#244C5F] disabled:opacity-50 transition-colors"
+                  className="rounded-xl bg-[#315F73] px-5 py-2.5 text-sm font-bold text-white shadow-lg transition hover:bg-[#244C5F] disabled:opacity-50"
                 >
-                  {guardando ? 'Guardando...' : modoEdicion ? 'Guardar cambios' : 'Guardar parque'}
+                  {guardando
+                    ? 'Guardando...'
+                    : modoEdicion
+                      ? 'Guardar cambios'
+                      : 'Guardar parque'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
       {/* ====================================== */}
       {/* MODAL INFORMACIÓN PARQUE - SIN DOBLE BARRA */}
       {/* ====================================== */}
@@ -1309,6 +1751,58 @@ export default function Parques() {
                   <p className="text-sm font-bold uppercase tracking-wide text-slate-400">Ubicación</p>
                   <p className="mt-2 text-xl font-semibold text-white">{parqueVer.ubicacion}</p>
                 </div>
+                {parqueVer.latitud !== null &&
+                  parqueVer.latitud !== undefined &&
+                  parqueVer.longitud !== null &&
+                  parqueVer.longitud !== undefined && (
+                    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 md:col-span-2">
+                      <div className="border-b border-white/10 p-6">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-bold uppercase tracking-wide text-slate-400">
+                              Ubicación en el mapa
+                            </p>
+                            <p className="mt-2 text-sm text-slate-300">
+                              Latitud {Number(parqueVer.latitud).toFixed(7)} · Longitud {Number(parqueVer.longitud).toFixed(7)}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSolicitudRecentrarMapa((valor) => valor + 1)
+                              }
+                              className="rounded-lg border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold text-white transition hover:bg-white/20"
+                            >
+                              Retomar punto
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const latitudGoogle = Number(parqueVer.latitud);
+                                const longitudGoogle = Number(parqueVer.longitud);
+                                const urlGoogleMaps =
+                                  `https://www.google.com/maps/search/?api=1&query=${latitudGoogle},${longitudGoogle}`;
+                                window.open(
+                                  urlGoogleMaps,
+                                  '_blank',
+                                  'noopener,noreferrer',
+                                );
+                              }}
+                              className="rounded-lg bg-[#18843B] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-600"
+                            >
+                              Ir a Google Maps
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <MapaInformacionArcgis
+                        latitud={Number(parqueVer.latitud)}
+                        longitud={Number(parqueVer.longitud)}
+                        solicitudRecentrar={solicitudRecentrarMapa}
+                      />
+                    </div>
+                  )}
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
                   <p className="text-sm font-bold uppercase tracking-wide text-slate-400">Número de finca</p>
                   <p className="mt-2 text-xl font-semibold text-white">{parqueVer.numero_finca}</p>
@@ -1355,7 +1849,6 @@ export default function Parques() {
           </div>
         </div>
       )}
-
       {/* ====================================== */}
       {/* MODAL INVERSIONES - SIN DOBLE BARRA */}
       {/* ====================================== */}
@@ -1456,7 +1949,6 @@ export default function Parques() {
           </div>
         </div>
       )}
-
       {/* ====================================== */}
       {/* MODAL INFORMACIÓN ENCARGADO - SIN DOBLE BARRA */}
       {/* ====================================== */}
@@ -1512,7 +2004,6 @@ export default function Parques() {
           </div>
         </div>
       )}
-
       {/* ====================================== */}
       {/* MODAL ELIMINAR - SIN DOBLE BARRA */}
       {/* ====================================== */}
@@ -1557,7 +2048,6 @@ export default function Parques() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

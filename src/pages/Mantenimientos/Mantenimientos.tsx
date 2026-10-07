@@ -19,32 +19,27 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-
 import fondoGrecia from '../../assets/grecia-login.jpg';
 import logoMunicipalidad from '../../assets/logo-municipalidad-grecia.webp';
-
+import SidebarCatastro from '../../components/SidebarCatastro';
 // ======================================================
 // AXIOS
 // ======================================================
-
+// Configura la instancia de Axios utilizada por el módulo.
 const api = axios.create({
   baseURL: '/api',
 });
-
+// Agrega automáticamente el token JWT a cada solicitud.
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-
   return config;
 });
-
 // ======================================================
 // INTERFACES
 // ======================================================
-
 interface Parque {
   id_parque: number;
   ubicacion: string;
@@ -55,9 +50,7 @@ interface Parque {
     nombre_distrito: string;
   } | null;
 }
-
 type TipoImagen = 'ANTES' | 'DESPUES';
-
 interface MantenimientoImagen {
   id_imagen: number;
   id_mantenimiento: number;
@@ -65,7 +58,6 @@ interface MantenimientoImagen {
   ruta_imagen: string;
   orden: number;
 }
-
 interface Mantenimiento {
   id_mantenimiento: number;
   nombre_mantenimiento: string;
@@ -77,7 +69,6 @@ interface Mantenimiento {
   parque: Parque;
   imagenes: MantenimientoImagen[];
 }
-
 interface FormularioMantenimiento {
   id_parque: string;
   nombre_mantenimiento: string;
@@ -86,37 +77,31 @@ interface FormularioMantenimiento {
   descripcion_inversion: string;
   fecha_mantenimiento: string;
 }
-
 interface ImagenLocal {
   id: string;
   archivo: File;
   preview: string;
 }
-
 interface ImagenServidor extends MantenimientoImagen {
   url: string;
 }
-
 type TipoEvidencia =
   | 'todas'
   | 'ambas'
   | 'solo_antes'
   | 'solo_despues'
   | 'sin_imagenes';
-
 // ======================================================
 // CONSTANTES
 // ======================================================
-
 const MAX_IMAGEN = 5 * 1024 * 1024;
 const MAX_IMAGENES_POR_TIPO = 20;
-
 const TIPOS_IMAGEN_PERMITIDOS = [
   'image/jpeg',
   'image/png',
   'image/webp',
 ];
-
+// Obtiene la fecha actual en formato YYYY-MM-DD.
 const obtenerFechaActual = () => {
   const hoy = new Date();
   const year = hoy.getFullYear();
@@ -124,7 +109,6 @@ const obtenerFechaActual = () => {
   const day = String(hoy.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
-
 const formularioInicial: FormularioMantenimiento = {
   id_parque: '',
   nombre_mantenimiento: '',
@@ -133,41 +117,32 @@ const formularioInicial: FormularioMantenimiento = {
   descripcion_inversion: '',
   fecha_mantenimiento: obtenerFechaActual(),
 };
-
 // ======================================================
 // COMPONENTE PRINCIPAL
 // ======================================================
-
+// Componente principal para la gestión de mantenimientos.
 export default function Mantenimientos() {
   const navigate = useNavigate();
-
   const [mantenimientos, setMantenimientos] = useState<Mantenimiento[]>([]);
   const [parques, setParques] = useState<Parque[]>([]);
   const [cargando, setCargando] = useState(true);
   const [procesando, setProcesando] = useState(false);
-
   const [modalFormulario, setModalFormulario] = useState(false);
   const [modalInformacion, setModalInformacion] = useState(false);
   const [modalEliminar, setModalEliminar] = useState(false);
-
   const [mantenimientoSeleccionado, setMantenimientoSeleccionado] =
     useState<Mantenimiento | null>(null);
   const [modoEdicion, setModoEdicion] = useState(false);
-
   const [formulario, setFormulario] =
     useState<FormularioMantenimiento>(formularioInicial);
-
   const [imagenesAntes, setImagenesAntes] = useState<ImagenLocal[]>([]);
   const [imagenesDespues, setImagenesDespues] = useState<ImagenLocal[]>([]);
-
   const [imagenesServidorAntes, setImagenesServidorAntes] =
     useState<ImagenServidor[]>([]);
   const [imagenesServidorDespues, setImagenesServidorDespues] =
     useState<ImagenServidor[]>([]);
-
   const [busquedaParque, setBusquedaParque] = useState('');
   const [selectorParqueAbierto, setSelectorParqueAbierto] = useState(false);
-
   const [filtroParque, setFiltroParque] = useState('');
   const [filtroNombre, setFiltroNombre] = useState('');
   const [filtroDescripcion, setFiltroDescripcion] = useState('');
@@ -175,22 +150,19 @@ export default function Mantenimientos() {
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
   const [filtroEvidencia, setFiltroEvidencia] =
     useState<TipoEvidencia>('todas');
-
   const [error, setError] = useState('');
   const [exito, setExito] = useState('');
-
   const [galeriaAbierta, setGaleriaAbierta] = useState(false);
   const [galeriaImagenes, setGaleriaImagenes] = useState<ImagenServidor[]>([]);
   const [galeriaIndice, setGaleriaIndice] = useState(0);
   const [galeriaTitulo, setGaleriaTitulo] = useState('');
-
   // ====================================================
   // BLOQUEO DE SCROLL DE FONDO
   // ====================================================
+  // Indica si alguno de los modales o la galería está abierto.
   const unModalEstaAbierto = Boolean(
     modalFormulario || modalInformacion || modalEliminar || galeriaAbierta
   );
-
   useEffect(() => {
     if (unModalEstaAbierto) {
       document.body.style.overflow = 'hidden';
@@ -201,20 +173,17 @@ export default function Mantenimientos() {
       document.body.style.overflow = '';
     };
   }, [unModalEstaAbierto]);
-
   // ====================================================
   // CARGA DE DATOS
   // ====================================================
-
+  // Carga mantenimientos y parques desde la API.
   const cargarDatos = async () => {
     try {
       setCargando(true);
-
       const [respuestaMantenimientos, respuestaParques] = await Promise.all([
         api.get('/mantenimientos'),
         api.get('/parques'),
       ]);
-
       setMantenimientos(respuestaMantenimientos.data);
       setParques(respuestaParques.data);
     } catch (err) {
@@ -224,49 +193,45 @@ export default function Mantenimientos() {
       setCargando(false);
     }
   };
-
   useEffect(() => {
     cargarDatos();
   }, []);
-
   // ====================================================
   // LIMPIEZA DE OBJECT URL
   // ====================================================
-
+  // Libera las URL temporales de las imágenes locales.
   const liberarImagenesLocales = (imagenes: ImagenLocal[]) => {
     imagenes.forEach((imagen) => URL.revokeObjectURL(imagen.preview));
   };
-
+  // Libera las URL temporales de las imágenes descargadas del servidor.
   const liberarImagenesServidor = (imagenes: ImagenServidor[]) => {
     imagenes.forEach((imagen) => URL.revokeObjectURL(imagen.url));
   };
-
+  // Limpia las imágenes nuevas seleccionadas por el usuario.
   const limpiarImagenesLocales = () => {
     liberarImagenesLocales(imagenesAntes);
     liberarImagenesLocales(imagenesDespues);
     setImagenesAntes([]);
     setImagenesDespues([]);
   };
-
+  // Limpia las imágenes cargadas desde el servidor.
   const limpiarImagenesServidor = () => {
     liberarImagenesServidor(imagenesServidorAntes);
     liberarImagenesServidor(imagenesServidorDespues);
     setImagenesServidorAntes([]);
     setImagenesServidorDespues([]);
   };
-
   // ====================================================
   // ESC / FLECHAS DE GALERÍA
   // ====================================================
-
   useEffect(() => {
+    // Gestiona Escape y navegación con flechas dentro de la galería.
     const manejarTeclado = (event: KeyboardEvent) => {
       if (galeriaAbierta) {
         if (event.key === 'Escape') {
           setGaleriaAbierta(false);
           return;
         }
-
         if (event.key === 'ArrowLeft') {
           setGaleriaIndice((indice) =>
             galeriaImagenes.length
@@ -275,7 +240,6 @@ export default function Mantenimientos() {
           );
           return;
         }
-
         if (event.key === 'ArrowRight') {
           setGaleriaIndice((indice) =>
             galeriaImagenes.length
@@ -285,14 +249,11 @@ export default function Mantenimientos() {
           return;
         }
       }
-
       if (event.key !== 'Escape' || procesando) return;
-
       if (modalFormulario) cerrarFormulario();
       else if (modalInformacion) cerrarInformacion();
       else if (modalEliminar) cerrarEliminar();
     };
-
     window.addEventListener('keydown', manejarTeclado);
     return () => window.removeEventListener('keydown', manejarTeclado);
   }, [
@@ -303,16 +264,13 @@ export default function Mantenimientos() {
     galeriaAbierta,
     galeriaImagenes.length,
   ]);
-
   // ====================================================
   // SELECTOR DE PARQUE
   // ====================================================
-
+  // Filtra los parques disponibles en el selector.
   const parquesSelector = useMemo(() => {
     const texto = busquedaParque.trim().toLowerCase();
-
     if (!texto) return parques;
-
     return parques.filter((parque) => {
       const cadena = [
         parque.ubicacion,
@@ -323,15 +281,13 @@ export default function Mantenimientos() {
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
-
       return cadena.includes(texto);
     });
   }, [parques, busquedaParque]);
-
   const parqueSeleccionado = parques.find(
     (parque) => String(parque.id_parque) === formulario.id_parque,
   );
-
+  // Selecciona un parque y lo asigna al formulario.
   const seleccionarParque = (parque: Parque) => {
     setFormulario((anterior) => ({
       ...anterior,
@@ -340,18 +296,15 @@ export default function Mantenimientos() {
     setBusquedaParque(parque.ubicacion);
     setSelectorParqueAbierto(false);
   };
-
   // ====================================================
   // FILTROS Y PAGINACIÓN
   // ====================================================
-
   const [paginaActual, setPaginaActual] = useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
-
+  // Aplica los filtros al listado de mantenimientos.
   const mantenimientosFiltrados = useMemo(() => {
     return mantenimientos.filter((mantenimiento) => {
       const parque = mantenimiento.parque;
-
       const textoParque = [
         parque?.ubicacion,
         parque?.numero_finca,
@@ -361,14 +314,12 @@ export default function Mantenimientos() {
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
-
       if (
         filtroParque &&
         !textoParque.includes(filtroParque.trim().toLowerCase())
       ) {
         return false;
       }
-
       if (
         filtroNombre &&
         !mantenimiento.nombre_mantenimiento
@@ -377,7 +328,6 @@ export default function Mantenimientos() {
       ) {
         return false;
       }
-
       if (
         filtroDescripcion &&
         !mantenimiento.descripcion
@@ -386,47 +336,39 @@ export default function Mantenimientos() {
       ) {
         return false;
       }
-
       if (
         filtroFechaDesde &&
         mantenimiento.fecha_mantenimiento < filtroFechaDesde
       ) {
         return false;
       }
-
       if (
         filtroFechaHasta &&
         mantenimiento.fecha_mantenimiento > filtroFechaHasta
       ) {
         return false;
       }
-
       const tieneAntes = mantenimiento.imagenes?.some(
         (imagen) => imagen.tipo === 'ANTES',
       );
       const tieneDespues = mantenimiento.imagenes?.some(
         (imagen) => imagen.tipo === 'DESPUES',
       );
-
       if (filtroEvidencia === 'ambas' && !(tieneAntes && tieneDespues)) {
         return false;
       }
-
       if (filtroEvidencia === 'solo_antes' && !(tieneAntes && !tieneDespues)) {
         return false;
       }
-
       if (
         filtroEvidencia === 'solo_despues' &&
         !(!tieneAntes && tieneDespues)
       ) {
         return false;
       }
-
       if (filtroEvidencia === 'sin_imagenes' && (tieneAntes || tieneDespues)) {
         return false;
       }
-
       return true;
     });
   }, [
@@ -438,24 +380,20 @@ export default function Mantenimientos() {
     filtroFechaHasta,
     filtroEvidencia,
   ]);
-
   const totalPaginas = Math.max(1, Math.ceil(mantenimientosFiltrados.length / registrosPorPagina));
   const indiceInicial = (paginaActual - 1) * registrosPorPagina;
   const indiceFinal = indiceInicial + registrosPorPagina;
   const mantenimientosPaginados = mantenimientosFiltrados.slice(indiceInicial, indiceFinal);
-
   const paginasVisibles = (() => {
     const paginas: number[] = [];
     const inicio = Math.max(1, paginaActual - 2);
     const fin = Math.min(totalPaginas, inicio + 4);
     const inicioAjustado = Math.max(1, fin - 4);
-
     for (let pagina = Math.max(1, inicioAjustado); pagina <= fin; pagina += 1) {
       paginas.push(pagina);
     }
     return paginas;
   })();
-
   useEffect(() => {
     setPaginaActual(1);
   }, [
@@ -467,13 +405,11 @@ export default function Mantenimientos() {
     filtroEvidencia,
     registrosPorPagina,
   ]);
-
   useEffect(() => {
     if (paginaActual > totalPaginas) {
       setPaginaActual(totalPaginas);
     }
   }, [paginaActual, totalPaginas]);
-
   const hayFiltrosActivos = Boolean(
     filtroParque ||
       filtroNombre ||
@@ -482,7 +418,7 @@ export default function Mantenimientos() {
       filtroFechaHasta ||
       filtroEvidencia !== 'todas',
   );
-
+  // Restablece todos los filtros de búsqueda.
   const limpiarFiltros = () => {
     setFiltroParque('');
     setFiltroNombre('');
@@ -491,36 +427,31 @@ export default function Mantenimientos() {
     setFiltroFechaHasta('');
     setFiltroEvidencia('todas');
   };
-
   // ====================================================
   // MENSAJES
   // ====================================================
-
+  // Muestra temporalmente un mensaje de operación exitosa.
   const mostrarExito = (mensaje: string) => {
     setError('');
     setExito(mensaje);
     window.setTimeout(() => setExito(''), 3500);
   };
-
+  // Obtiene un mensaje legible a partir de un error de Axios.
   const obtenerMensajeError = (err: unknown) => {
     if (axios.isAxiosError(err)) {
       const axiosError = err as AxiosError<{
         message?: string | string[];
       }>;
-
       const mensaje = axiosError.response?.data?.message;
-
       if (Array.isArray(mensaje)) return mensaje.join(' ');
       if (typeof mensaje === 'string') return mensaje;
     }
-
     return 'Ocurrió un error inesperado.';
   };
-
   // ====================================================
   // IMÁGENES DEL SERVIDOR
   // ====================================================
-
+  // Descarga una imagen del mantenimiento desde el backend.
   const cargarImagenServidor = async (
     mantenimientoId: number,
     imagen: MantenimientoImagen,
@@ -530,7 +461,6 @@ export default function Mantenimientos() {
         `/mantenimientos/${mantenimientoId}/imagenes/${imagen.id_imagen}`,
         { responseType: 'blob' },
       );
-
       return {
         ...imagen,
         url: URL.createObjectURL(respuesta.data),
@@ -540,24 +470,20 @@ export default function Mantenimientos() {
       return null;
     }
   };
-
+  // Carga y separa las imágenes antes y después del mantenimiento.
   const cargarImagenesServidor = async (mantenimiento: Mantenimiento) => {
     limpiarImagenesServidor();
-
     const imagenesOrdenadas = [...(mantenimiento.imagenes || [])].sort(
       (a, b) => a.orden - b.orden,
     );
-
     const cargadas = await Promise.all(
       imagenesOrdenadas.map((imagen) =>
         cargarImagenServidor(mantenimiento.id_mantenimiento, imagen),
       ),
     );
-
     const validas = cargadas.filter(
       (imagen): imagen is ImagenServidor => imagen !== null,
     );
-
     setImagenesServidorAntes(
       validas.filter((imagen) => imagen.tipo === 'ANTES'),
     );
@@ -565,11 +491,10 @@ export default function Mantenimientos() {
       validas.filter((imagen) => imagen.tipo === 'DESPUES'),
     );
   };
-
   // ====================================================
   // ABRIR / CERRAR MODALES
   // ====================================================
-
+  // Prepara el formulario para registrar un mantenimiento nuevo.
   const abrirNuevo = () => {
     limpiarImagenesLocales();
     limpiarImagenesServidor();
@@ -584,7 +509,7 @@ export default function Mantenimientos() {
     setError('');
     setModalFormulario(true);
   };
-
+  // Carga los datos del mantenimiento seleccionado para editarlo.
   const abrirEditar = async (mantenimiento: Mantenimiento) => {
     limpiarImagenesLocales();
     limpiarImagenesServidor();
@@ -607,19 +532,19 @@ export default function Mantenimientos() {
     setModalFormulario(true);
     await cargarImagenesServidor(mantenimiento);
   };
-
+  // Abre el modal con la información y evidencias del mantenimiento.
   const abrirInformacion = async (mantenimiento: Mantenimiento) => {
     limpiarImagenesServidor();
     setMantenimientoSeleccionado(mantenimiento);
     setModalInformacion(true);
     await cargarImagenesServidor(mantenimiento);
   };
-
+  // Abre el modal para confirmar la eliminación.
   const abrirEliminar = (mantenimiento: Mantenimiento) => {
     setMantenimientoSeleccionado(mantenimiento);
     setModalEliminar(true);
   };
-
+  // Cierra el formulario y libera las imágenes temporales.
   const cerrarFormulario = () => {
     if (procesando) return;
     setModalFormulario(false);
@@ -627,23 +552,22 @@ export default function Mantenimientos() {
     limpiarImagenesLocales();
     limpiarImagenesServidor();
   };
-
+  // Cierra el modal de información y limpia las imágenes cargadas.
   const cerrarInformacion = () => {
     setModalInformacion(false);
     setGaleriaAbierta(false);
     limpiarImagenesServidor();
   };
-
+  // Cierra el modal de eliminación.
   const cerrarEliminar = () => {
     if (procesando) return;
     setModalEliminar(false);
     setMantenimientoSeleccionado(null);
   };
-
   // ====================================================
   // FORMULARIO
   // ====================================================
-
+  // Actualiza los campos generales del formulario.
   const manejarCambio = (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
@@ -653,130 +577,106 @@ export default function Mantenimientos() {
       [name]: value,
     }));
   };
-
+  // Valida y limita el formato del monto de inversión.
   const manejarCambioInversion = (event: ChangeEvent<HTMLInputElement>) => {
     let valor = event.target.value;
-
     // Solo números y un punto decimal. No permite e, +, -, letras, etc.
     valor = valor.replace(/[^0-9.]/g, '');
-
     const partes = valor.split('.');
     if (partes.length > 2) {
       valor = `${partes[0]}.${partes.slice(1).join('')}`;
     }
-
     let [enteros = '', decimales = ''] = valor.split('.');
-
     // DECIMAL(12,2) => máximo 10 enteros + 2 decimales.
     enteros = enteros.slice(0, 10);
     decimales = decimales.slice(0, 2);
-
     valor =
       valor.includes('.')
         ? `${enteros}.${decimales}`
         : enteros;
-
     setFormulario((anterior) => ({
       ...anterior,
       inversion: valor,
     }));
   };
-
+  // Valida tipo, tamaño y cantidad de imágenes seleccionadas.
   const validarArchivos = (
     archivos: File[],
     cantidadExistentes: number,
   ): File[] => {
     const validos: File[] = [];
-
     for (const archivo of archivos) {
       if (!TIPOS_IMAGEN_PERMITIDOS.includes(archivo.type)) {
         setError('Solo se permiten imágenes JPG, JPEG, PNG o WEBP.');
         continue;
       }
-
       if (archivo.size > MAX_IMAGEN) {
         setError(`La imagen "${archivo.name}" supera el máximo de 5 MB.`);
         continue;
       }
-
       validos.push(archivo);
     }
-
     const disponibles = Math.max(
       0,
       MAX_IMAGENES_POR_TIPO - cantidadExistentes,
     );
-
     if (validos.length > disponibles) {
       setError(
         `Solo se permiten hasta ${MAX_IMAGENES_POR_TIPO} imágenes por sección.`,
       );
     }
-
     return validos.slice(0, disponibles);
   };
-
+  // Agrega varias imágenes a la sección antes o después.
   const manejarVariasImagenes = (
     event: ChangeEvent<HTMLInputElement>,
     tipo: TipoImagen,
   ) => {
     const archivos = Array.from(event.target.files || []);
     if (!archivos.length) return;
-
     const localesActuales = tipo === 'ANTES' ? imagenesAntes : imagenesDespues;
     const servidorActuales =
       tipo === 'ANTES' ? imagenesServidorAntes : imagenesServidorDespues;
-
     const validos = validarArchivos(
       archivos,
       localesActuales.length + servidorActuales.length,
     );
-
     if (!validos.length) {
       event.target.value = '';
       return;
     }
-
     const nuevas: ImagenLocal[] = validos.map((archivo) => ({
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       archivo,
       preview: URL.createObjectURL(archivo),
     }));
-
     setError('');
-
     if (tipo === 'ANTES') {
       setImagenesAntes((actuales) => [...actuales, ...nuevas]);
     } else {
       setImagenesDespues((actuales) => [...actuales, ...nuevas]);
     }
-
     event.target.value = '';
   };
-
+  // Elimina una imagen seleccionada localmente.
   const eliminarImagenLocal = (tipo: TipoImagen, id: string) => {
     const setter = tipo === 'ANTES' ? setImagenesAntes : setImagenesDespues;
-
     setter((actuales) => {
       const imagen = actuales.find((item) => item.id === id);
       if (imagen) URL.revokeObjectURL(imagen.preview);
       return actuales.filter((item) => item.id !== id);
     });
   };
-
+  // Elimina una imagen ya almacenada en el servidor.
   const eliminarImagenServidor = async (imagen: ImagenServidor) => {
     if (!mantenimientoSeleccionado || procesando) return;
-
     try {
       setProcesando(true);
       setError('');
-
       await api.delete(
         `/mantenimientos/${mantenimientoSeleccionado.id_mantenimiento}/imagenes/${imagen.id_imagen}`,
       );
-
       URL.revokeObjectURL(imagen.url);
-
       if (imagen.tipo === 'ANTES') {
         setImagenesServidorAntes((actuales) =>
           actuales.filter((item) => item.id_imagen !== imagen.id_imagen),
@@ -786,7 +686,6 @@ export default function Mantenimientos() {
           actuales.filter((item) => item.id_imagen !== imagen.id_imagen),
         );
       }
-
       setMantenimientos((actuales) =>
         actuales.map((mantenimiento) =>
           mantenimiento.id_mantenimiento ===
@@ -800,7 +699,6 @@ export default function Mantenimientos() {
             : mantenimiento,
         ),
       );
-
       mostrarExito('Imagen eliminada correctamente.');
     } catch (err) {
       console.error(err);
@@ -809,40 +707,33 @@ export default function Mantenimientos() {
       setProcesando(false);
     }
   };
-
+  // Valida todos los datos requeridos antes de guardar.
   const validarFormulario = () => {
     if (!formulario.id_parque) {
       setError('Debe seleccionar un parque.');
       return false;
     }
-
     if (!formulario.nombre_mantenimiento.trim()) {
       setError('Debe ingresar el nombre del mantenimiento.');
       return false;
     }
-
     if (formulario.nombre_mantenimiento.trim().length > 100) {
       setError('El nombre del mantenimiento no puede superar los 100 caracteres.');
       return false;
     }
-
     if (!formulario.descripcion.trim()) {
       setError('Debe ingresar una descripción.');
       return false;
     }
-
     if (formulario.descripcion.trim().length > 500) {
       setError('La descripción no puede superar los 500 caracteres.');
       return false;
     }
-
     if (!formulario.inversion.trim()) {
       setError('Debe ingresar la inversión realizada.');
       return false;
     }
-
     const inversionNumero = Number(formulario.inversion);
-
     if (
       Number.isNaN(inversionNumero) ||
       inversionNumero < 0 ||
@@ -851,34 +742,27 @@ export default function Mantenimientos() {
       setError('La inversión debe ser un monto válido entre 0 y 9.999.999.999,99.');
       return false;
     }
-
     if (!formulario.descripcion_inversion.trim()) {
       setError('Debe ingresar la descripción de la inversión.');
       return false;
     }
-
     if (formulario.descripcion_inversion.trim().length > 500) {
       setError('La descripción de la inversión no puede superar los 500 caracteres.');
       return false;
     }
-
     if (!formulario.fecha_mantenimiento) {
       setError('Debe seleccionar la fecha del mantenimiento.');
       return false;
     }
-
     return true;
   };
-
+  // Registra o actualiza un mantenimiento.
   const guardarMantenimiento = async (event: FormEvent) => {
     event.preventDefault();
     setError('');
-
     if (!validarFormulario()) return;
-
     try {
       setProcesando(true);
-
       const formData = new FormData();
       formData.append('id_parque', formulario.id_parque);
       formData.append(
@@ -892,15 +776,12 @@ export default function Mantenimientos() {
         formulario.descripcion_inversion.trim(),
       );
       formData.append('fecha_mantenimiento', formulario.fecha_mantenimiento);
-
       imagenesAntes.forEach((imagen) => {
         formData.append('imagenes_antes', imagen.archivo);
       });
-
       imagenesDespues.forEach((imagen) => {
         formData.append('imagenes_despues', imagen.archivo);
       });
-
       if (modoEdicion && mantenimientoSeleccionado) {
         await api.patch(
           `/mantenimientos/${mantenimientoSeleccionado.id_mantenimiento}`,
@@ -911,7 +792,6 @@ export default function Mantenimientos() {
         await api.post('/mantenimientos', formData);
         mostrarExito('Mantenimiento registrado correctamente.');
       }
-
       setModalFormulario(false);
       limpiarImagenesLocales();
       limpiarImagenesServidor();
@@ -923,10 +803,9 @@ export default function Mantenimientos() {
       setProcesando(false);
     }
   };
-
+  // Elimina el mantenimiento seleccionado.
   const eliminarMantenimiento = async () => {
     if (!mantenimientoSeleccionado) return;
-
     try {
       setProcesando(true);
       await api.delete(
@@ -943,11 +822,10 @@ export default function Mantenimientos() {
       setProcesando(false);
     }
   };
-
   // ====================================================
   // GALERÍA
   // ====================================================
-
+  // Abre la galería de evidencias en la imagen seleccionada.
   const abrirGaleria = (
     imagenes: ImagenServidor[],
     indice: number,
@@ -959,7 +837,7 @@ export default function Mantenimientos() {
     setGaleriaTitulo(titulo);
     setGaleriaAbierta(true);
   };
-
+  // Muestra la imagen anterior de la galería.
   const anteriorGaleria = () => {
     setGaleriaIndice((indice) =>
       galeriaImagenes.length
@@ -967,7 +845,7 @@ export default function Mantenimientos() {
         : 0,
     );
   };
-
+  // Muestra la imagen siguiente de la galería.
   const siguienteGaleria = () => {
     setGaleriaIndice((indice) =>
       galeriaImagenes.length
@@ -975,23 +853,20 @@ export default function Mantenimientos() {
         : 0,
     );
   };
-
   // ====================================================
   // FORMATO
   // ====================================================
-
+  // Formatea una fecha para mostrarla como día/mes/año.
   const formatearFecha = (fecha: string) => {
     if (!fecha) return '—';
     const [year, month, day] = fecha.slice(0, 10).split('-');
     return `${day}/${month}/${year}`;
   };
-
+  // Formatea la inversión en colones costarricenses.
   const formatearInversion = (valor: number | string | null | undefined) => {
     if (valor === null || valor === undefined || valor === '') return '—';
-
     const numero = Number(valor);
     if (Number.isNaN(numero)) return '—';
-
     return new Intl.NumberFormat('es-CR', {
       style: 'currency',
       currency: 'CRC',
@@ -999,20 +874,17 @@ export default function Mantenimientos() {
       maximumFractionDigits: 2,
     }).format(numero);
   };
-
   // ====================================================
   // RENDER
   // ====================================================
-
   return (
-    <div className="relative min-h-screen w-full font-sans antialiased text-white flex flex-col overflow-x-hidden">
-      
+    <div className="relative min-h-screen w-full font-sans antialiased text-white flex flex-col overflow-x-hidden lg:pl-[270px]">
+      <SidebarCatastro />
       {/* 1. IMAGEN DE FONDO FIJA */}
       <div
         className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${fondoGrecia})` }}
       />
-
       {/* 2. OVERLAY OSCURO */}
       <div
         className="fixed inset-0 z-0"
@@ -1021,27 +893,22 @@ export default function Mantenimientos() {
             'radial-gradient(circle at 12% 12%, rgba(5, 25, 36, 0.98) 0%, rgba(5, 25, 36, 0.88) 28%, transparent 58%), linear-gradient(180deg, rgba(6, 20, 28, 0.85) 0%, rgba(6, 20, 28, 0.93) 100%)',
         }}
       />
-
       {/* 3. FRANJA TRICOLOR INSTITUCIONAL */}
       <div className="fixed inset-x-0 top-0 z-50 grid h-1.5 grid-cols-[2.2fr_1fr_.7fr]">
         <span className="bg-[#315F73]" />
         <span className="bg-[#18843B]" />
         <span className="bg-[#D4112E]" />
       </div>
-
       {/* 4. CABECERA FLOTANTE OSCURA CON BOTÓN VOLVER TEXTUAL */}
       <header className="relative z-30 w-full border-b border-white/10 bg-[#0B212D]/80 backdrop-blur-xl px-6 lg:px-12 py-3.5 shadow-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
-          
           <div className="flex items-center gap-4">
             <img
               src={logoMunicipalidad}
               alt="Municipalidad de Grecia"
               className="h-11 w-auto object-contain drop-shadow-md"
             />
-            
             <div className="hidden h-9 w-[1px] bg-white/20 sm:block" />
-            
             <div>
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#86efac]">
                 SISTEMA DE CATASTRO
@@ -1054,7 +921,6 @@ export default function Mantenimientos() {
               </p>
             </div>
           </div>
-
           <div className="flex flex-col items-end gap-2.5">
             <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3.5 py-1.5 backdrop-blur-md">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#18843B] text-xs font-bold text-white shadow-sm">
@@ -1065,7 +931,6 @@ export default function Mantenimientos() {
                 <p className="text-[10px] text-slate-300">rodriguezderek12@gmail.com</p>
               </div>
             </div>
-
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -1074,7 +939,6 @@ export default function Mantenimientos() {
               >
                 Volver al panel
               </button>
-
               <button
                 type="button"
                 onClick={() => {
@@ -1091,22 +955,18 @@ export default function Mantenimientos() {
               </button>
             </div>
           </div>
-
         </div>
       </header>
-
       {/* ====================================== */}
       {/* CONTENIDO PRINCIPAL */}
       {/* ====================================== */}
       <main className="relative z-20 mx-auto w-full max-w-7xl px-6 lg:px-12 py-8 flex-1">
-        
         {exito && (
           <div className="mb-5 flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-900/40 px-4 py-3 text-sm font-bold text-emerald-300 backdrop-blur-md">
             <CheckCircle2 size={20} />
             {exito}
           </div>
         )}
-
         {error && !modalFormulario && !modalEliminar && (
           <div className="mb-5 flex min-w-0 items-start justify-between gap-3 rounded-xl border border-red-500/30 bg-red-900/40 px-4 py-3 text-sm text-red-300 backdrop-blur-md">
             <span className="min-w-0 break-words font-bold">{error}</span>
@@ -1119,7 +979,6 @@ export default function Mantenimientos() {
             </button>
           </div>
         )}
-
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <h2 className="flex items-center gap-2 text-xl font-bold text-white tracking-tight">
@@ -1139,7 +998,6 @@ export default function Mantenimientos() {
             Nuevo mantenimiento
           </button>
         </div>
-
         {/* ====================================== */}
         {/* FILTROS DE BÚSQUEDA */}
         {/* ====================================== */}
@@ -1154,7 +1012,6 @@ export default function Mantenimientos() {
                 Puede combinar varios filtros.
               </p>
             </div>
-
             {hayFiltrosActivos && (
               <button
                 type="button"
@@ -1165,7 +1022,6 @@ export default function Mantenimientos() {
               </button>
             )}
           </div>
-
           <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3">
             <CampoFiltro
               label="Parque"
@@ -1173,21 +1029,18 @@ export default function Mantenimientos() {
               onChange={setFiltroParque}
               placeholder="Ubicación, finca, distrito..."
             />
-
             <CampoFiltro
               label="Nombre del mantenimiento"
               value={filtroNombre}
               onChange={setFiltroNombre}
               placeholder="Buscar mantenimiento..."
             />
-
             <CampoFiltro
               label="Descripción"
               value={filtroDescripcion}
               onChange={setFiltroDescripcion}
               placeholder="Buscar en descripción..."
             />
-
             <div className="min-w-0">
               <label className="mb-1.5 block text-sm font-medium text-slate-300">
                 Fecha desde
@@ -1199,7 +1052,6 @@ export default function Mantenimientos() {
                 className="w-full min-w-0 rounded-xl border border-white/20 bg-[#071923]/50 px-3 py-2.5 text-sm text-white outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 [color-scheme:dark]"
               />
             </div>
-
             <div className="min-w-0">
               <label className="mb-1.5 block text-sm font-medium text-slate-300">
                 Fecha hasta
@@ -1211,7 +1063,6 @@ export default function Mantenimientos() {
                 className="w-full min-w-0 rounded-xl border border-white/20 bg-[#071923]/50 px-3 py-2.5 text-sm text-white outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 [color-scheme:dark]"
               />
             </div>
-
             <div className="min-w-0">
               <label className="mb-1.5 block text-sm font-medium text-slate-300">
                 Evidencias
@@ -1232,7 +1083,6 @@ export default function Mantenimientos() {
             </div>
           </div>
         </section>
-
         {/* ====================================== */}
         {/* TABLA DE MANTENIMIENTOS (ANCHO AMPLIADO Y COLUMNA ACCIONES AL 22%) */}
         {/* ====================================== */}
@@ -1267,7 +1117,6 @@ export default function Mantenimientos() {
                   </th>
                 </tr>
               </thead>
-
               <tbody className="divide-y divide-white/5">
                 {cargando ? (
                   <tr>
@@ -1292,7 +1141,6 @@ export default function Mantenimientos() {
                     const cantidadDespues = mantenimiento.imagenes?.filter(
                       (imagen) => imagen.tipo === 'DESPUES',
                     ).length || 0;
-
                     return (
                       <tr
                         key={mantenimiento.id_mantenimiento}
@@ -1306,7 +1154,6 @@ export default function Mantenimientos() {
                             >
                               {mantenimiento.parque?.ubicacion || 'Sin ubicación'}
                             </p>
-
                             {mantenimiento.parque?.numero_finca && (
                               <p
                                 className="mt-0.5 block max-w-full truncate text-xs text-slate-400"
@@ -1317,7 +1164,6 @@ export default function Mantenimientos() {
                             )}
                           </div>
                         </td>
-
                         <td className="min-w-0 px-5 py-4 align-top">
                           <p
                             className="block max-w-full truncate font-semibold text-slate-200"
@@ -1326,7 +1172,6 @@ export default function Mantenimientos() {
                             {mantenimiento.nombre_mantenimiento}
                           </p>
                         </td>
-
                         <td className="min-w-0 px-5 py-4 align-top text-sm text-slate-400">
                           <p
                             className="line-clamp-2 max-w-full break-words"
@@ -1335,7 +1180,6 @@ export default function Mantenimientos() {
                             {mantenimiento.descripcion}
                           </p>
                         </td>
-
                         <td className="min-w-0 px-5 py-4 align-top text-sm font-bold text-emerald-400">
                           <p
                             className="max-w-full truncate"
@@ -1344,19 +1188,15 @@ export default function Mantenimientos() {
                             {formatearInversion(mantenimiento.inversion)}
                           </p>
                         </td>
-
                         <td className="whitespace-nowrap px-5 py-4 align-top text-sm text-slate-300">
                           {formatearFecha(mantenimiento.fecha_mantenimiento)}
                         </td>
-
                         <td className="px-5 py-4 text-center align-top">
                           <IndicadorCantidad cantidad={cantidadAntes} />
                         </td>
-
                         <td className="px-5 py-4 text-center align-top">
                           <IndicadorCantidad cantidad={cantidadDespues} />
                         </td>
-
                         <td className="whitespace-nowrap px-5 py-4 align-top">
                           <div className="flex flex-nowrap items-center gap-2">
                             <button
@@ -1367,7 +1207,6 @@ export default function Mantenimientos() {
                               <Eye size={15} />
                               Info
                             </button>
-
                             <button
                               type="button"
                               onClick={() => abrirEditar(mantenimiento)}
@@ -1376,7 +1215,6 @@ export default function Mantenimientos() {
                               <Edit3 size={15} />
                               Editar
                             </button>
-
                             <button
                               type="button"
                               onClick={() => abrirEliminar(mantenimiento)}
@@ -1393,7 +1231,6 @@ export default function Mantenimientos() {
                 )}
               </tbody>
             </table>
-
             {mantenimientosFiltrados.length > 0 && (
               <div className="flex flex-col gap-4 bg-[#0B212D]/90 border-t border-white/10 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -1402,7 +1239,6 @@ export default function Mantenimientos() {
                     <span className="font-bold text-white">{Math.min(indiceFinal, mantenimientosFiltrados.length)}</span> de{' '}
                     <span className="font-bold text-white">{mantenimientosFiltrados.length}</span> mantenimientos
                   </p>
-
                   <div className="flex items-center gap-2">
                     <label htmlFor="registrosPorPaginaParques" className="text-sm text-slate-400">
                       Registros por página:
@@ -1419,7 +1255,6 @@ export default function Mantenimientos() {
                     </select>
                   </div>
                 </div>
-
                 <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
                   <button
                     type="button"
@@ -1429,7 +1264,6 @@ export default function Mantenimientos() {
                   >
                     ← Anterior
                   </button>
-
                   {paginasVisibles.map((pagina) => (
                     <button
                       key={pagina}
@@ -1444,7 +1278,6 @@ export default function Mantenimientos() {
                       {pagina}
                     </button>
                   ))}
-
                   <button
                     type="button"
                     onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
@@ -1459,7 +1292,6 @@ export default function Mantenimientos() {
           </div>
         </section>
       </main>
-
       {/* =================================================
           MODAL CREAR / EDITAR - GRANDE Y SIN DOBLE SCROLL
       ================================================= */}
@@ -1487,7 +1319,6 @@ export default function Mantenimientos() {
                 ✕
               </button>
             </div>
-
             <form
               onSubmit={guardarMantenimiento}
               className="flex-1 overflow-y-auto p-10"
@@ -1497,14 +1328,12 @@ export default function Mantenimientos() {
                   {error}
                 </div>
               )}
-
               <div className="grid min-w-0 gap-8 md:grid-cols-2">
                 {/* PARQUE */}
                 <div className="relative min-w-0 md:col-span-2">
                   <label className="mb-3 block text-base font-bold text-slate-300">
                     Parque <span className="text-red-500">*</span>
                   </label>
-
                   <button
                     type="button"
                     onClick={() => setSelectorParqueAbierto((anterior) => !anterior)}
@@ -1522,7 +1351,6 @@ export default function Mantenimientos() {
                     </span>
                     <ChevronDown size={20} className="shrink-0 text-slate-400" />
                   </button>
-
                   {selectorParqueAbierto && (
                     <div className="absolute z-30 mt-2 w-full min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#0B212D] shadow-2xl">
                       <div className="border-b border-white/10 p-4">
@@ -1538,7 +1366,6 @@ export default function Mantenimientos() {
                           />
                         </div>
                       </div>
-
                       <div className="max-h-64 min-w-0 overflow-x-hidden overflow-y-auto p-2">
                         {parquesSelector.length === 0 ? (
                           <p className="p-4 text-center text-sm text-slate-400">
@@ -1570,7 +1397,6 @@ export default function Mantenimientos() {
                     </div>
                   )}
                 </div>
-
                 <div className="min-w-0">
                   <label className="mb-3 block text-base font-bold text-slate-300">
                     Nombre del mantenimiento <span className="text-red-500">*</span>
@@ -1588,7 +1414,6 @@ export default function Mantenimientos() {
                     {formulario.nombre_mantenimiento.length}/100
                   </p>
                 </div>
-
                 <div className="min-w-0">
                   <label className="mb-3 block text-base font-bold text-slate-300">
                     Fecha <span className="text-red-500">*</span>
@@ -1601,7 +1426,6 @@ export default function Mantenimientos() {
                     className="w-full min-w-0 rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white focus:border-emerald-500 focus:outline-none [color-scheme:dark]"
                   />
                 </div>
-
                 <div className="min-w-0 md:col-span-2">
                   <label className="mb-3 block text-base font-bold text-slate-300">
                     Descripción <span className="text-red-500">*</span>
@@ -1619,7 +1443,6 @@ export default function Mantenimientos() {
                     {formulario.descripcion.length}/500
                   </p>
                 </div>
-
                 <div className="min-w-0">
                   <label className="mb-3 block text-base font-bold text-slate-300">
                     Inversión realizada (₡) <span className="text-red-500">*</span>
@@ -1638,7 +1461,6 @@ export default function Mantenimientos() {
                     Máximo 10 enteros y 2 decimales.
                   </p>
                 </div>
-
                 <div className="min-w-0 md:col-span-2">
                   <label className="mb-3 block text-base font-bold text-slate-300">
                     Descripción de la inversión <span className="text-red-500">*</span>
@@ -1656,7 +1478,6 @@ export default function Mantenimientos() {
                     {formulario.descripcion_inversion.length}/500
                   </p>
                 </div>
-
                 <div className="min-w-0 md:col-span-2">
                   <div className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-2">
                     <div className="min-w-0">
@@ -1668,7 +1489,6 @@ export default function Mantenimientos() {
                       </p>
                     </div>
                   </div>
-
                   <div className="grid min-w-0 gap-6 lg:grid-cols-2">
                     <SelectorVariasImagenes
                       titulo="Antes del mantenimiento"
@@ -1687,7 +1507,6 @@ export default function Mantenimientos() {
                         )
                       }
                     />
-
                     <SelectorVariasImagenes
                       titulo="Después del mantenimiento"
                       tipo="DESPUES"
@@ -1708,7 +1527,6 @@ export default function Mantenimientos() {
                   </div>
                 </div>
               </div>
-
               <div className="mt-12 flex justify-end gap-5 border-t border-white/10 pt-10 flex-shrink-0">
                 <button
                   type="button"
@@ -1734,7 +1552,6 @@ export default function Mantenimientos() {
           </div>
         </ModalOverlay>
       )}
-
       {/* =================================================
           MODAL INFORMACIÓN - GRANDE Y SIN DOBLE SCROLL
       ================================================= */}
@@ -1753,7 +1570,6 @@ export default function Mantenimientos() {
                   {mantenimientoSeleccionado.nombre_mantenimiento}
                 </p>
               </div>
-
               <button
                 type="button"
                 onClick={cerrarInformacion}
@@ -1762,7 +1578,6 @@ export default function Mantenimientos() {
                 ✕
               </button>
             </div>
-
             <div className="min-w-0 flex-1 overflow-y-auto p-10">
               <div className="grid min-w-0 gap-6 md:grid-cols-2">
                 <InfoCard label="Parque">
@@ -1770,44 +1585,37 @@ export default function Mantenimientos() {
                     {mantenimientoSeleccionado.parque?.ubicacion || 'Sin ubicación'}
                   </p>
                 </InfoCard>
-
                 <InfoCard label="Distrito">
                   <p className="max-w-full break-all text-slate-300">
                     {mantenimientoSeleccionado.parque?.distrito?.nombre_distrito || '—'}
                   </p>
                 </InfoCard>
-
                 <InfoCard label="Nombre del mantenimiento">
                   <p className="max-w-full break-all font-bold text-white">
                     {mantenimientoSeleccionado.nombre_mantenimiento}
                   </p>
                 </InfoCard>
-
                 <InfoCard label="Fecha">
                   <p className="font-semibold text-slate-300">
                     {formatearFecha(mantenimientoSeleccionado.fecha_mantenimiento)}
                   </p>
                 </InfoCard>
-
                 <InfoCard label="Inversión realizada">
                   <p className="text-2xl font-black text-emerald-400">
                     {formatearInversion(mantenimientoSeleccionado.inversion)}
                   </p>
                 </InfoCard>
-
                 <InfoCard label="Descripción de la inversión" className="md:col-span-2">
                   <p className="max-w-full whitespace-pre-wrap break-all text-base leading-relaxed text-slate-300">
                     {mantenimientoSeleccionado.descripcion_inversion || '—'}
                   </p>
                 </InfoCard>
-
                 <InfoCard label="Descripción del mantenimiento" className="md:col-span-2">
                   <p className="max-w-full whitespace-pre-wrap break-all text-base leading-relaxed text-slate-300">
                     {mantenimientoSeleccionado.descripcion}
                   </p>
                 </InfoCard>
               </div>
-
               <div className="mt-10 grid min-w-0 gap-6 lg:grid-cols-2">
                 <GaleriaMiniaturas
                   titulo="Antes del mantenimiento"
@@ -1820,7 +1628,6 @@ export default function Mantenimientos() {
                     )
                   }
                 />
-
                 <GaleriaMiniaturas
                   titulo="Después del mantenimiento"
                   imagenes={imagenesServidorDespues}
@@ -1833,7 +1640,6 @@ export default function Mantenimientos() {
                   }
                 />
               </div>
-              
               <div className="mt-12 flex justify-end flex-shrink-0 pb-5">
                 <button
                   type="button"
@@ -1847,7 +1653,6 @@ export default function Mantenimientos() {
           </div>
         </ModalOverlay>
       )}
-
       {/* =================================================
           MODAL ELIMINAR - GRANDE Y SIN DOBLE SCROLL
       ================================================= */}
@@ -1875,7 +1680,6 @@ export default function Mantenimientos() {
                 ✕
               </button>
             </div>
-
             <div className="min-w-0 overflow-y-auto px-10 py-10">
               <div className="rounded-2xl border border-red-500/30 bg-red-900/30 p-8 text-center flex flex-col items-center justify-center">
                 <p className="text-base text-red-300">
@@ -1888,12 +1692,10 @@ export default function Mantenimientos() {
                   del parque <strong className="text-white">{mantenimientoSeleccionado.parque?.ubicacion || 'Sin ubicación'}</strong>
                 </p>
               </div>
-
               <p className="mt-8 text-center text-sm font-semibold text-slate-400">
                 También se eliminarán todas las imágenes asociadas a este mantenimiento.
               </p>
             </div>
-
             <div className="flex justify-end gap-5 border-t border-white/10 px-10 py-7 flex-shrink-0">
               <button
                 type="button"
@@ -1915,7 +1717,6 @@ export default function Mantenimientos() {
           </div>
         </ModalOverlay>
       )}
-
       {/* =================================================
           GALERÍA GRANDE
       ================================================= */}
@@ -1937,7 +1738,6 @@ export default function Mantenimientos() {
                   Imagen {galeriaIndice + 1} de {galeriaImagenes.length}
                 </p>
               </div>
-
               <button
                 type="button"
                 onClick={() => setGaleriaAbierta(false)}
@@ -1946,14 +1746,12 @@ export default function Mantenimientos() {
                 <X size={26} />
               </button>
             </div>
-
             <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-2xl bg-black/40 border border-white/10">
               <img
                 src={galeriaImagenes[galeriaIndice].url}
                 alt={`${galeriaTitulo} ${galeriaIndice + 1}`}
                 className="max-h-full max-w-full object-contain"
               />
-
               {galeriaImagenes.length > 1 && (
                 <>
                   <button
@@ -1963,7 +1761,6 @@ export default function Mantenimientos() {
                   >
                     <ChevronLeft size={30} />
                   </button>
-
                   <button
                     type="button"
                     onClick={siguienteGaleria}
@@ -1974,7 +1771,6 @@ export default function Mantenimientos() {
                 </>
               )}
             </div>
-
             {galeriaImagenes.length > 1 && (
               <div className="mt-4 flex max-w-full gap-3 overflow-x-auto pb-2 custom-scrollbar">
                 {galeriaImagenes.map((imagen, indice) => (
@@ -2003,11 +1799,9 @@ export default function Mantenimientos() {
     </div>
   );
 }
-
 // ======================================================
 // COMPONENTES AUXILIARES (CON DISEÑO DARK GLASSMORPHISM)
 // ======================================================
-
 function ModalOverlay({
   children,
   onClose,
@@ -2026,7 +1820,6 @@ function ModalOverlay({
     </div>
   );
 }
-
 function CampoFiltro({
   label,
   value,
@@ -2053,7 +1846,6 @@ function CampoFiltro({
     </div>
   );
 }
-
 function IndicadorCantidad({ cantidad }: { cantidad: number }) {
   return (
     <span
@@ -2068,7 +1860,6 @@ function IndicadorCantidad({ cantidad }: { cantidad: number }) {
     </span>
   );
 }
-
 function SelectorVariasImagenes({
   titulo,
   tipo,
@@ -2092,7 +1883,6 @@ function SelectorVariasImagenes({
 }) {
   const total = imagenesLocales.length + imagenesServidor.length;
   const inputId = `imagenes-${tipo.toLowerCase()}`;
-
   return (
     <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
       <div className="mb-4 flex min-w-0 items-center justify-between gap-3">
@@ -2104,7 +1894,6 @@ function SelectorVariasImagenes({
         </div>
         <Camera size={26} className="shrink-0 text-[#18843B]" />
       </div>
-
       <label
         htmlFor={inputId}
         className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/20 bg-[#071923]/50 px-4 py-6 text-sm font-bold text-slate-300 transition hover:border-emerald-500 hover:text-emerald-400 hover:bg-white/5"
@@ -2112,7 +1901,6 @@ function SelectorVariasImagenes({
         <Upload size={20} />
         Subir imágenes
       </label>
-
       <input
         id={inputId}
         type="file"
@@ -2122,7 +1910,6 @@ function SelectorVariasImagenes({
         disabled={procesando || total >= MAX_IMAGENES_POR_TIPO}
         className="hidden"
       />
-
       {total === 0 ? (
         <div className="mt-5 rounded-xl border border-white/10 bg-black/20 p-8 text-center">
           <ImageIcon size={36} className="mx-auto mb-3 text-slate-500" />
@@ -2147,7 +1934,6 @@ function SelectorVariasImagenes({
                   className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110 opacity-90 group-hover:opacity-100"
                 />
               </button>
-
               <button
                 type="button"
                 onClick={() => onEliminarServidor(imagen)}
@@ -2159,7 +1945,6 @@ function SelectorVariasImagenes({
               </button>
             </div>
           ))}
-
           {imagenesLocales.map((imagen, indice) => (
             <div
               key={imagen.id}
@@ -2170,7 +1955,6 @@ function SelectorVariasImagenes({
                 alt={`Nueva ${titulo.toLowerCase()} ${indice + 1}`}
                 className="h-full w-full object-cover opacity-90"
               />
-
               <button
                 type="button"
                 onClick={() => onEliminarLocal(imagen.id)}
@@ -2180,7 +1964,6 @@ function SelectorVariasImagenes({
               >
                 <X size={16} />
               </button>
-
               <span className="absolute bottom-2 left-2 rounded-md bg-emerald-500/90 px-2 py-1 text-xs font-bold text-white shadow-md backdrop-blur-sm">
                 NUEVA
               </span>
@@ -2191,7 +1974,6 @@ function SelectorVariasImagenes({
     </div>
   );
 }
-
 function GaleriaMiniaturas({
   titulo,
   imagenes,
@@ -2214,7 +1996,6 @@ function GaleriaMiniaturas({
         </div>
         <Camera size={26} className="shrink-0 text-[#18843B]" />
       </div>
-
       {imagenes.length === 0 ? (
         <div className="rounded-xl border border-white/10 bg-black/20 p-10 text-center">
           <ImageIcon size={36} className="mx-auto mb-3 text-slate-500" />
@@ -2245,7 +2026,6 @@ function GaleriaMiniaturas({
     </div>
   );
 }
-
 function InfoCard({
   label,
   children,

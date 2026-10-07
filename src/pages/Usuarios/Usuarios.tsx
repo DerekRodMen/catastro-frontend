@@ -16,63 +16,51 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
-
 import { api } from '../../services/api';
 import fondoGrecia from '../../assets/grecia-login.jpg';
 import logoMunicipalidad from '../../assets/logo-municipalidad-grecia.webp';
-
+import SidebarCatastro from '../../components/SidebarCatastro';
 interface Usuario {
   id_usuario: number;
   nombre_usuario: string | null;
   correo: string;
   estado: boolean;
 }
-
 interface CambioCorreoPendiente {
   id_usuario: number;
   correo_nuevo: string;
   nombre_usuario: string;
   estado: boolean;
 }
-
+// Componente principal para la gestión de usuarios.
 export default function Usuarios() {
   const navigate = useNavigate();
-
   // ============================
   // DATOS
   // ============================
-
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
-
   // ============================
   // FILTROS
   // ============================
-
   const [filtroNombre, setFiltroNombre] = useState('');
   const [filtroCorreo, setFiltroCorreo] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<'todos' | 'activo' | 'inactivo' | 'pendiente'>('todos');
-
   // ============================
   // PAGINACIÓN
   // ============================
-
   const [paginaActual, setPaginaActual] = useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
-
   // ============================
   // MODALES Y ESTADOS (ABIERTO/CERRADO)
   // ============================
-
   const [modalInvitarAbierto, setModalInvitarAbierto] = useState(false);
   const [correoInvitacion, setCorreoInvitacion] = useState('');
   const [enviandoInvitacion, setEnviandoInvitacion] = useState(false);
   const [errorInvitacion, setErrorInvitacion] = useState('');
-
   const [modalExitoAbierto, setModalExitoAbierto] = useState(false);
   const [correoInvitado, setCorreoInvitado] = useState('');
-
   const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
   const [usuarioEditando, setUsuarioEditando] = useState<Usuario | null>(null);
   const [nombreUsuario, setNombreUsuario] = useState('');
@@ -80,20 +68,18 @@ export default function Usuarios() {
   const [estado, setEstado] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [errorEditar, setErrorEditar] = useState('');
-
   const [modalVerificacionAbierto, setModalVerificacionAbierto] = useState(false);
   const [cambioCorreoPendiente, setCambioCorreoPendiente] = useState<CambioCorreoPendiente | null>(null);
   const [codigoVerificacion, setCodigoVerificacion] = useState('');
   const [verificandoCorreo, setVerificandoCorreo] = useState(false);
   const [reenviandoCodigo, setReenviandoCodigo] = useState(false);
   const [errorVerificacion, setErrorVerificacion] = useState('');
-
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false);
   const [usuarioEliminar, setUsuarioEliminar] = useState<Usuario | null>(null);
   const [eliminando, setEliminando] = useState(false);
   const [errorEliminar, setErrorEliminar] = useState('');
-
   // BLOQUEO DE SCROLL GLOBAL
+  // Indica si alguno de los modales está abierto.
   const unModalEstaAbierto = Boolean(
     modalInvitarAbierto ||
     modalExitoAbierto ||
@@ -101,7 +87,6 @@ export default function Usuarios() {
     modalVerificacionAbierto ||
     modalEliminarAbierto
   );
-
   useEffect(() => {
     if (unModalEstaAbierto) {
       document.body.style.overflow = 'hidden';
@@ -112,11 +97,10 @@ export default function Usuarios() {
       document.body.style.overflow = '';
     };
   }, [unModalEstaAbierto]);
-
   // ============================
   // TOKEN
   // ============================
-
+  // Obtiene el token de sesión y redirige al login si no existe.
   const obtenerToken = useCallback(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -126,58 +110,47 @@ export default function Usuarios() {
     }
     return token;
   }, [navigate]);
-
   // ============================
   // CARGAR USUARIOS
   // ============================
-
+  // Carga los usuarios registrados desde la API.
   const cargarUsuarios = useCallback(async () => {
     try {
       setCargando(true);
       setError('');
-
       const token = obtenerToken();
       if (!token) {
         return;
       }
-
       const response = await api.get('/usuarios', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-
       setUsuarios(response.data);
     } catch (error: any) {
       console.error('Error cargando usuarios:', error);
-
       if (error.response?.status === 401) {
         localStorage.removeItem('token');
         localStorage.removeItem('usuario');
         navigate('/login');
         return;
       }
-
       setError('No se pudieron cargar los usuarios.');
     } finally {
       setCargando(false);
     }
   }, [navigate, obtenerToken]);
-
   useEffect(() => {
     cargarUsuarios();
   }, [cargarUsuarios]);
-
   useEffect(() => {
     const guardado = localStorage.getItem('cambioCorreoPendienteUsuario');
-
     if (!guardado) {
       return;
     }
-
     try {
       const pendiente = JSON.parse(guardado) as CambioCorreoPendiente;
-
       if (pendiente?.id_usuario && pendiente?.correo_nuevo) {
         setCambioCorreoPendiente(pendiente);
       }
@@ -185,47 +158,40 @@ export default function Usuarios() {
       localStorage.removeItem('cambioCorreoPendienteUsuario');
     }
   }, []);
-
   // ============================
   // INVITACIÓN
   // ============================
-
+  // Abre el modal para invitar a un nuevo usuario.
   const abrirModalInvitar = () => {
     setCorreoInvitacion('');
     setErrorInvitacion('');
     setModalInvitarAbierto(true);
   };
-
+  // Cierra el modal de invitación.
   const cerrarModalInvitar = () => {
     if (enviandoInvitacion) return;
     setModalInvitarAbierto(false);
     setCorreoInvitacion('');
     setErrorInvitacion('');
   };
-
+  // Envía una invitación por correo para crear una nueva cuenta.
   const enviarInvitacion = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorInvitacion('');
-
     const correo = correoInvitacion.trim().toLowerCase();
-
     if (!correo) {
       setErrorInvitacion('Debe ingresar un correo electrónico.');
       return;
     }
-
     try {
       setEnviandoInvitacion(true);
-
       const token = obtenerToken();
       if (!token) return;
-
       await api.post(
         '/usuarios/invitar',
         { correo },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-
       setCorreoInvitado(correo);
       setModalInvitarAbierto(false);
       setCorreoInvitacion('');
@@ -233,16 +199,13 @@ export default function Usuarios() {
       setModalExitoAbierto(true);
     } catch (error: any) {
       console.error('Error enviando invitación:', error);
-
       if (error.response?.status === 401) {
         localStorage.removeItem('token');
         localStorage.removeItem('usuario');
         navigate('/login');
         return;
       }
-
       const message = error.response?.data?.message;
-
       if (Array.isArray(message)) {
         setErrorInvitacion(message.join(', '));
       } else if (message) {
@@ -254,11 +217,10 @@ export default function Usuarios() {
       setEnviandoInvitacion(false);
     }
   };
-
   // ============================
   // EDITAR
   // ============================
-
+  // Carga los datos del usuario seleccionado para editarlo.
   const abrirModalEditar = (usuario: Usuario) => {
     setUsuarioEditando(usuario);
     setNombreUsuario(usuario.nombre_usuario ?? '');
@@ -267,7 +229,7 @@ export default function Usuarios() {
     setErrorEditar('');
     setModalEditarAbierto(true);
   };
-
+  // Cierra el modal de edición.
   const cerrarModalEditar = () => {
     if (guardando) return;
     setModalEditarAbierto(false);
@@ -276,34 +238,26 @@ export default function Usuarios() {
     setCorreoEditar('');
     setErrorEditar('');
   };
-
+  // Guarda los cambios realizados al usuario.
   const guardarCambios = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     if (!usuarioEditando) return;
     setErrorEditar('');
-
     const nombreLimpio = nombreUsuario.trim().slice(0, 50);
     const correoLimpio = correoEditar.trim().toLowerCase();
-
     if (!correoLimpio) {
       setErrorEditar('Debe ingresar el correo electrónico.');
       return;
     }
-
     if (nombreLimpio.length > 50) {
       setErrorEditar('El nombre no puede superar los 50 caracteres.');
       return;
     }
-
     try {
       setGuardando(true);
-
       const token = obtenerToken();
       if (!token) return;
-
       const correoCambio = correoLimpio !== usuarioEditando.correo.trim().toLowerCase();
-
       // ========================================
       // SI EL CORREO NO CAMBIÓ
       // ========================================
@@ -317,13 +271,11 @@ export default function Usuarios() {
           },
           { headers: { Authorization: `Bearer ${token}` } },
         );
-
         setModalEditarAbierto(false);
         setUsuarioEditando(null);
         await cargarUsuarios();
         return;
       }
-
       // ========================================
       // SI CAMBIÓ EL CORREO: SOLICITAR CÓDIGO
       // ========================================
@@ -336,17 +288,14 @@ export default function Usuarios() {
         },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-
       const pendiente: CambioCorreoPendiente = {
         id_usuario: usuarioEditando.id_usuario,
         correo_nuevo: correoLimpio,
         nombre_usuario: nombreLimpio,
         estado,
       };
-
       localStorage.setItem('cambioCorreoPendienteUsuario', JSON.stringify(pendiente));
       setCambioCorreoPendiente(pendiente);
-
       setCodigoVerificacion('');
       setErrorVerificacion('');
       setModalEditarAbierto(false);
@@ -354,16 +303,13 @@ export default function Usuarios() {
       setModalVerificacionAbierto(true);
     } catch (error: any) {
       console.error('Error actualizando usuario:', error);
-
       if (error.response?.status === 401) {
         localStorage.removeItem('token');
         localStorage.removeItem('usuario');
         navigate('/login');
         return;
       }
-
       const message = error.response?.data?.message;
-
       if (Array.isArray(message)) {
         setErrorEditar(message.join(', '));
       } else if (message) {
@@ -375,11 +321,10 @@ export default function Usuarios() {
       setGuardando(false);
     }
   };
-
   // ============================
   // VERIFICAR CAMBIO DE CORREO
   // ============================
-
+  // Abre el modal para verificar un cambio de correo pendiente.
   const abrirModalVerificacion = (usuario?: Usuario) => {
     if (usuario && cambioCorreoPendiente && cambioCorreoPendiente.id_usuario !== usuario.id_usuario) {
       return;
@@ -388,42 +333,35 @@ export default function Usuarios() {
     setErrorVerificacion('');
     setModalVerificacionAbierto(true);
   };
-
+  // Cierra el modal de verificación de correo.
   const cerrarModalVerificacion = () => {
     if (verificandoCorreo || reenviandoCodigo) return;
     setModalVerificacionAbierto(false);
     setCodigoVerificacion('');
     setErrorVerificacion('');
   };
-
+  // Verifica el código enviado para confirmar el cambio de correo.
   const verificarCambioCorreo = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     if (!cambioCorreoPendiente) {
       setErrorVerificacion('No hay un cambio de correo pendiente.');
       return;
     }
-
     const codigo = codigoVerificacion.replace(/\D/g, '').slice(0, 6);
-
     if (codigo.length !== 6) {
       setErrorVerificacion('Ingrese el código de verificación de 6 dígitos.');
       return;
     }
-
     try {
       setVerificandoCorreo(true);
       setErrorVerificacion('');
-
       const token = obtenerToken();
       if (!token) return;
-
       await api.post(
         `/usuarios/${cambioCorreoPendiente.id_usuario}/verificar-cambio-correo`,
         { codigo },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-
       localStorage.removeItem('cambioCorreoPendienteUsuario');
       setCambioCorreoPendiente(null);
       setCodigoVerificacion('');
@@ -440,17 +378,14 @@ export default function Usuarios() {
       setVerificandoCorreo(false);
     }
   };
-
+  // Reenvía el código de verificación del cambio de correo.
   const reenviarCodigoCambioCorreo = async () => {
     if (!cambioCorreoPendiente) return;
-
     try {
       setReenviandoCodigo(true);
       setErrorVerificacion('');
-
       const token = obtenerToken();
       if (!token) return;
-
       await api.post(
         `/usuarios/${cambioCorreoPendiente.id_usuario}/reenviar-codigo-correo`,
         {},
@@ -467,38 +402,33 @@ export default function Usuarios() {
       setReenviandoCodigo(false);
     }
   };
-
   // ============================
   // ELIMINAR
   // ============================
-
+  // Abre el modal para confirmar la eliminación del usuario.
   const abrirModalEliminar = (usuario: Usuario) => {
     setUsuarioEliminar(usuario);
     setErrorEliminar('');
     setModalEliminarAbierto(true);
   };
-
+  // Cierra el modal de eliminación.
   const cerrarModalEliminar = () => {
     if (eliminando) return;
     setModalEliminarAbierto(false);
     setUsuarioEliminar(null);
     setErrorEliminar('');
   };
-
+  // Elimina el usuario seleccionado.
   const confirmarEliminar = async () => {
     if (!usuarioEliminar) return;
-
     try {
       setEliminando(true);
       setErrorEliminar('');
-
       const token = obtenerToken();
       if (!token) return;
-
       await api.delete(`/usuarios/${usuarioEliminar.id_usuario}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       setModalEliminarAbierto(false);
       setUsuarioEliminar(null);
       await cargarUsuarios();
@@ -514,22 +444,19 @@ export default function Usuarios() {
       setEliminando(false);
     }
   };
-
   // ============================
   // ESC CERRAR MODALES
   // ============================
-
   useEffect(() => {
+    // Permite cerrar los modales con la tecla Escape.
     const manejarEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-
       if (modalVerificacionAbierto) return cerrarModalVerificacion();
       if (modalEliminarAbierto) return cerrarModalEliminar();
       if (modalEditarAbierto) return cerrarModalEditar();
       if (modalInvitarAbierto) return cerrarModalInvitar();
       if (modalExitoAbierto) setModalExitoAbierto(false);
     };
-
     window.addEventListener('keydown', manejarEscape);
     return () => window.removeEventListener('keydown', manejarEscape);
   }, [
@@ -544,20 +471,16 @@ export default function Usuarios() {
     guardando,
     enviandoInvitacion,
   ]);
-
   // ============================
   // FILTRADO Y PAGINACIÓN
   // ============================
-
+  // Filtra los usuarios según nombre, correo y estado.
   const usuariosFiltrados = usuarios.filter((usuario) => {
     const nombre = (usuario.nombre_usuario ?? '').toLowerCase();
     const correo = usuario.correo.toLowerCase();
-
     const coincideNombre = nombre.includes(filtroNombre.trim().toLowerCase());
     const coincideCorreo = correo.includes(filtroCorreo.trim().toLowerCase());
-
     let coincideEstado = true;
-
     if (filtroEstado === 'activo') {
       coincideEstado = usuario.estado === true;
     } else if (filtroEstado === 'inactivo') {
@@ -565,65 +488,56 @@ export default function Usuarios() {
     } else if (filtroEstado === 'pendiente') {
       coincideEstado = usuario.estado === false && usuario.nombre_usuario === null;
     }
-
     return coincideNombre && coincideCorreo && coincideEstado;
   });
-
+  // Restablece los filtros de búsqueda.
   const limpiarFiltros = () => {
     setFiltroNombre('');
     setFiltroCorreo('');
     setFiltroEstado('todos');
   };
-
   const hayFiltrosActivos =
     filtroNombre.trim() !== '' ||
     filtroCorreo.trim() !== '' ||
     filtroEstado !== 'todos';
-
   const totalPaginas = Math.max(
     1,
     Math.ceil(usuariosFiltrados.length / registrosPorPagina),
   );
-
+  // Obtiene los usuarios correspondientes a la página actual.
   const usuariosPaginados = useMemo(() => {
     const inicio = (paginaActual - 1) * registrosPorPagina;
     return usuariosFiltrados.slice(inicio, inicio + registrosPorPagina);
   }, [usuariosFiltrados, paginaActual, registrosPorPagina]);
-
+  // Calcula las páginas visibles en la paginación.
   const paginasVisibles = (() => {
     const paginas: number[] = [];
     const inicio = Math.max(1, paginaActual - 2);
     const fin = Math.min(totalPaginas, inicio + 4);
     const inicioAjustado = Math.max(1, fin - 4);
-
     for (let pagina = Math.max(1, inicioAjustado); pagina <= fin; pagina += 1) {
       paginas.push(pagina);
     }
     return paginas;
   })();
-
   useEffect(() => {
     setPaginaActual(1);
   }, [filtroNombre, filtroCorreo, filtroEstado, registrosPorPagina]);
-
   useEffect(() => {
     if (paginaActual > totalPaginas) {
       setPaginaActual(totalPaginas);
     }
   }, [paginaActual, totalPaginas]);
-
   const inicioRegistro = usuariosFiltrados.length === 0 ? 0 : (paginaActual - 1) * registrosPorPagina + 1;
   const finRegistro = Math.min(paginaActual * registrosPorPagina, usuariosFiltrados.length);
-
   return (
-    <div className="relative min-h-screen w-full font-sans antialiased text-white flex flex-col overflow-x-hidden">
-      
+    <div className="relative min-h-screen w-full font-sans antialiased text-white flex flex-col overflow-x-hidden lg:pl-[270px]">
+      <SidebarCatastro />
       {/* 1. IMAGEN DE FONDO FIJA */}
       <div
         className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${fondoGrecia})` }}
       />
-
       {/* 2. OVERLAY OSCURO */}
       <div
         className="fixed inset-0 z-0"
@@ -632,14 +546,12 @@ export default function Usuarios() {
             'radial-gradient(circle at 12% 12%, rgba(5, 25, 36, 0.98) 0%, rgba(5, 25, 36, 0.88) 28%, transparent 58%), linear-gradient(180deg, rgba(6, 20, 28, 0.85) 0%, rgba(6, 20, 28, 0.93) 100%)',
         }}
       />
-
       {/* 3. FRANJA TRICOLOR INSTITUCIONAL */}
       <div className="fixed inset-x-0 top-0 z-50 grid h-1.5 grid-cols-[2.2fr_1fr_.7fr]">
         <span className="bg-[#315F73]" />
         <span className="bg-[#18843B]" />
         <span className="bg-[#D4112E]" />
       </div>
-
       {/* 4. CABECERA FLOTANTE OSCURA CON BOTÓN VOLVER TEXTUAL */}
       <header className="relative z-30 w-full border-b border-white/10 bg-[#0B212D]/80 backdrop-blur-xl px-6 lg:px-12 py-3.5 shadow-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
@@ -662,7 +574,6 @@ export default function Usuarios() {
               </p>
             </div>
           </div>
-
           <div className="flex flex-col items-end gap-2.5">
             <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3.5 py-1.5 backdrop-blur-md">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#18843B] text-xs font-bold text-white shadow-sm">
@@ -673,7 +584,6 @@ export default function Usuarios() {
                 <p className="text-[10px] text-slate-300">rodriguezderek12@gmail.com</p>
               </div>
             </div>
-
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -700,12 +610,10 @@ export default function Usuarios() {
           </div>
         </div>
       </header>
-
       {/* ====================================== */}
       {/* CONTENIDO PRINCIPAL */}
       {/* ====================================== */}
       <main className="relative z-20 mx-auto w-full max-w-7xl px-6 lg:px-12 py-8 flex-1">
-        
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <h2 className="flex items-center gap-2 text-xl font-bold text-white tracking-tight">
@@ -725,7 +633,6 @@ export default function Usuarios() {
             Nuevo usuario
           </button>
         </div>
-
         {/* ====================================== */}
         {/* FILTROS DE BÚSQUEDA */}
         {/* ====================================== */}
@@ -750,7 +657,6 @@ export default function Usuarios() {
               </button>
             )}
           </div>
-
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="min-w-0">
               <label className="mb-1.5 block text-sm font-medium text-slate-300">Nombre</label>
@@ -787,14 +693,12 @@ export default function Usuarios() {
             </div>
           </div>
         </section>
-
         {/* CARGANDO */}
         {cargando && (
           <div className="rounded-2xl border border-white/10 bg-[#0d222e]/85 p-8 text-center text-slate-300 backdrop-blur-md">
             Cargando usuarios...
           </div>
         )}
-
         {/* ERROR */}
         {!cargando && error && (
           <div className="rounded-2xl border border-red-500/30 bg-red-900/40 p-6 backdrop-blur-md">
@@ -808,7 +712,6 @@ export default function Usuarios() {
             </button>
           </div>
         )}
-
         {/* ====================================== */}
         {/* TABLA DE USUARIOS */}
         {/* ====================================== */}
@@ -832,7 +735,6 @@ export default function Usuarios() {
                     </th>
                   </tr>
                 </thead>
-
                 <tbody className="divide-y divide-white/5">
                   {usuariosFiltrados.length === 0 ? (
                     <tr>
@@ -853,13 +755,11 @@ export default function Usuarios() {
                             {usuario.nombre_usuario || 'Pendiente de activación'}
                           </p>
                         </td>
-
                         <td className="min-w-0 px-6 py-4 align-middle">
                           <p className="truncate text-sm text-slate-300" title={usuario.correo}>
                             {usuario.correo}
                           </p>
                         </td>
-
                         <td className="whitespace-nowrap px-6 py-4 align-middle">
                           {usuario.estado ? (
                             <span className="inline-flex rounded-md bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-400">
@@ -875,7 +775,6 @@ export default function Usuarios() {
                             </span>
                           )}
                         </td>
-
                         <td className="whitespace-nowrap px-6 py-4 pr-10 align-middle">
                           <div className="flex flex-nowrap items-center gap-2">
                             <button
@@ -887,7 +786,6 @@ export default function Usuarios() {
                               <Edit3 size={15} />
                               Editar
                             </button>
-
                             {cambioCorreoPendiente?.id_usuario === usuario.id_usuario && (
                               <button
                                 type="button"
@@ -899,7 +797,6 @@ export default function Usuarios() {
                                 Verificar
                               </button>
                             )}
-
                             <button
                               type="button"
                               title="Eliminar"
@@ -917,7 +814,6 @@ export default function Usuarios() {
                 </tbody>
               </table>
             </div>
-
             {/* PAGINACIÓN */}
             {usuariosFiltrados.length > 0 && (
               <div className="flex flex-col gap-4 bg-[#0B212D]/90 border-t border-white/10 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
@@ -927,7 +823,6 @@ export default function Usuarios() {
                     <span className="font-bold text-white">{finRegistro}</span> de{' '}
                     <span className="font-bold text-white">{usuariosFiltrados.length}</span> usuarios
                   </p>
-
                   <div className="flex items-center gap-2">
                     <label htmlFor="registrosPorPagina" className="text-sm text-slate-400">
                       Por página:
@@ -944,7 +839,6 @@ export default function Usuarios() {
                     </select>
                   </div>
                 </div>
-
                 <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
                   <button
                     type="button"
@@ -954,7 +848,6 @@ export default function Usuarios() {
                   >
                     ← Anterior
                   </button>
-
                   {paginasVisibles.map((pagina) => (
                     <button
                       key={pagina}
@@ -969,7 +862,6 @@ export default function Usuarios() {
                       {pagina}
                     </button>
                   ))}
-
                   <button
                     type="button"
                     onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
@@ -984,7 +876,6 @@ export default function Usuarios() {
           </section>
         )}
       </main>
-
       {/* =================================================
           MODAL INVITAR
       ================================================= */}
@@ -1009,14 +900,12 @@ export default function Usuarios() {
                 ✕
               </button>
             </div>
-
             <form onSubmit={enviarInvitacion} className="flex-1 overflow-y-auto p-8">
               {errorInvitacion && (
                 <div className="mb-6 rounded-xl border border-red-500/30 bg-red-900/40 p-4 text-sm font-semibold text-red-300">
                   {errorInvitacion}
                 </div>
               )}
-
               <div className="mb-8">
                 <label className="mb-2 block text-sm font-bold text-slate-300">
                   Correo electrónico <span className="text-red-500">*</span>
@@ -1034,7 +923,6 @@ export default function Usuarios() {
                   />
                 </div>
               </div>
-
               <div className="flex justify-end gap-4 flex-shrink-0">
                 <button
                   type="button"
@@ -1056,7 +944,6 @@ export default function Usuarios() {
           </div>
         </div>
       )}
-
       {/* =================================================
           MODAL ÉXITO (INVITACIÓN ENVIADA)
       ================================================= */}
@@ -1066,23 +953,18 @@ export default function Usuarios() {
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
               <CheckCircle2 size={32} />
             </div>
-
             <h2 className="mt-6 text-center text-2xl font-black text-white tracking-tighter">
               Invitación enviada
             </h2>
-
             <p className="mt-3 text-center text-sm text-slate-300">
               Se envió correctamente la invitación a:
             </p>
-
             <p className="mt-2 break-all text-center text-lg font-bold text-emerald-400">
               {correoInvitado}
             </p>
-
             <p className="mt-4 text-center text-xs text-slate-400">
               La persona deberá abrir el enlace recibido para crear su contraseña y activar su cuenta en el sistema.
             </p>
-
             <button
               type="button"
               onClick={() => setModalExitoAbierto(false)}
@@ -1093,7 +975,6 @@ export default function Usuarios() {
           </div>
         </div>
       )}
-
       {/* =================================================
           MODAL EDITAR USUARIO
       ================================================= */}
@@ -1118,14 +999,12 @@ export default function Usuarios() {
                 ✕
               </button>
             </div>
-
             <form onSubmit={guardarCambios} className="flex-1 overflow-y-auto p-8">
               {errorEditar && (
                 <div className="mb-6 rounded-xl border border-red-500/30 bg-red-900/40 p-4 text-sm font-semibold text-red-300">
                   {errorEditar}
                 </div>
               )}
-
               <div className="space-y-6">
                 <div>
                   <label className="mb-2 block text-sm font-bold text-slate-300">
@@ -1145,7 +1024,6 @@ export default function Usuarios() {
                     <p className="mt-1 text-xs text-amber-400">El nombre será establecido por el usuario al activar su cuenta.</p>
                   )}
                 </div>
-
                 <div>
                   <label className="mb-2 block text-sm font-bold text-slate-300">
                     Correo electrónico <span className="text-red-500">*</span>
@@ -1158,7 +1036,6 @@ export default function Usuarios() {
                     className="w-full rounded-xl border border-white/20 bg-[#071923] px-4 py-3 text-base text-white focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
-
                 <div>
                   <label className="mb-2 block text-sm font-bold text-slate-300">
                     Estado de acceso
@@ -1174,7 +1051,6 @@ export default function Usuarios() {
                   </select>
                 </div>
               </div>
-
               <div className="mt-10 flex justify-end gap-4 flex-shrink-0">
                 <button
                   type="button"
@@ -1196,7 +1072,6 @@ export default function Usuarios() {
           </div>
         </div>
       )}
-
       {/* =================================================
           MODAL VERIFICACIÓN DE CORREO
       ================================================= */}
@@ -1214,18 +1089,15 @@ export default function Usuarios() {
                 {cambioCorreoPendiente.correo_nuevo}
               </p>
             </div>
-
             <form onSubmit={verificarCambioCorreo} className="p-8">
               {errorVerificacion && (
                 <div className="mb-6 rounded-xl border border-red-500/30 bg-red-900/40 p-4 text-sm font-semibold text-red-300">
                   <p className="max-w-full break-words">{errorVerificacion}</p>
                 </div>
               )}
-
               <label className="mb-2 block text-sm font-bold text-slate-300 text-center">
                 Código de verificación
               </label>
-
               <input
                 type="text"
                 inputMode="numeric"
@@ -1238,11 +1110,9 @@ export default function Usuarios() {
                 placeholder="000000"
                 className="mx-auto block w-3/4 rounded-xl border border-emerald-500/50 bg-[#071923] px-4 py-3 text-center text-3xl font-black text-white tracking-[0.35em] focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
-
               <p className="mt-4 text-center text-xs text-slate-400">
                 El cambio no se aplicará hasta verificar este código.
               </p>
-
               <div className="mt-6 text-center">
                 <button
                   type="button"
@@ -1253,7 +1123,6 @@ export default function Usuarios() {
                   {reenviandoCodigo ? 'Reenviando código...' : 'Reenviar código de verificación'}
                 </button>
               </div>
-
               <div className="mt-8 flex justify-end gap-4 flex-shrink-0">
                 <button
                   type="button"
@@ -1275,7 +1144,6 @@ export default function Usuarios() {
           </div>
         </div>
       )}
-
       {/* =================================================
           MODAL ELIMINAR
       ================================================= */}
@@ -1286,7 +1154,6 @@ export default function Usuarios() {
               <h2 className="text-2xl font-black text-white tracking-tighter">Eliminar usuario</h2>
               <p className="mt-1 text-sm text-slate-400">Esta acción eliminará el acceso de esta persona permanentemente.</p>
             </div>
-
             <div className="p-8">
               <div className="rounded-2xl border border-red-500/30 bg-red-900/30 p-6 flex flex-col items-center justify-center text-center">
                 <p className="text-sm font-semibold text-red-300">
@@ -1299,13 +1166,11 @@ export default function Usuarios() {
                   {usuarioEliminar.correo}
                 </p>
               </div>
-
               {errorEliminar && (
                 <div className="mt-6 rounded-xl border border-red-500/30 bg-red-900/50 p-4 text-sm font-semibold text-red-300">
                   {errorEliminar}
                 </div>
               )}
-
               <div className="mt-8 flex justify-end gap-4 flex-shrink-0">
                 <button
                   type="button"
