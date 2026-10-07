@@ -12,17 +12,15 @@ import {
   Search,
   Trash2,
 } from 'lucide-react';
-
 import { api } from '../../services/api';
 import fondoGrecia from '../../assets/grecia-login.jpg';
 import logoMunicipalidad from '../../assets/logo-municipalidad-grecia.webp';
-
+import SidebarCatastro from '../../components/SidebarCatastro';
 interface Parque {
   id_parque: number;
   ubicacion: string;
   numero_finca: string;
 }
-
 interface Declaracion {
   id_declaracion: number;
   fecha_declaracion: string;
@@ -30,18 +28,17 @@ interface Declaracion {
   estado_declaracion: string;
   parque?: Parque;
 }
-
 // ============================
 // FUNCIONES PARA FECHAS
 // ============================
-
+// Obtiene la fecha en formato compatible con los campos de fecha.
 const obtenerFechaInput = (fecha: string | null | undefined) => {
   if (!fecha) {
     return '';
   }
   return fecha.substring(0, 10);
 };
-
+// Formatea la fecha para mostrarla como día/mes/año.
 const mostrarFecha = (fecha: string | null | undefined) => {
   if (!fecha) {
     return '-';
@@ -53,7 +50,7 @@ const mostrarFecha = (fecha: string | null | undefined) => {
   }
   return `${partes[2]}/${partes[1]}/${partes[0]}`;
 };
-
+// Calcula automáticamente la fecha de vencimiento a cinco años.
 const calcularFechaVencimiento = (fechaDeclaracion: string) => {
   if (!fechaDeclaracion) {
     return '';
@@ -62,61 +59,49 @@ const calcularFechaVencimiento = (fechaDeclaracion: string) => {
   if (partes.length !== 3) {
     return '';
   }
-
   const anio = Number(partes[0]);
   const mes = Number(partes[1]);
   const dia = Number(partes[2]);
-
   const nuevoAnio = anio + 5;
   const ultimoDiaMes = new Date(nuevoAnio, mes, 0).getDate();
   const diaAjustado = Math.min(dia, ultimoDiaMes);
-
   return `${nuevoAnio}-${String(mes).padStart(2, '0')}-${String(
     diaAjustado,
   ).padStart(2, '0')}`;
 };
-
 // ============================
 // COMPONENTE
 // ============================
-
+// Componente principal para la gestión de declaraciones.
 export default function Declaraciones() {
   const navigate = useNavigate();
-
   // ============================
   // DATOS
   // ============================
-
   const [declaraciones, setDeclaraciones] = useState<Declaracion[]>([]);
   const [parques, setParques] = useState<Parque[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
-
   // ============================
   // FILTROS DE BÚSQUEDA
   // ============================
-
   const [filtroParque, setFiltroParque] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroFechaDeclaracion, setFiltroFechaDeclaracion] = useState('');
   const [filtroFechaVencimiento, setFiltroFechaVencimiento] = useState('');
-
+  // Filtra las declaraciones según los criterios seleccionados.
   const declaracionesFiltradas = declaraciones.filter((declaracion) => {
     const coincideParque =
       !filtroParque ||
       String(declaracion.parque?.id_parque ?? '') === filtroParque;
-
     const coincideEstado =
       !filtroEstado || declaracion.estado_declaracion === filtroEstado;
-
     const coincideFechaDeclaracion =
       !filtroFechaDeclaracion ||
       obtenerFechaInput(declaracion.fecha_declaracion) === filtroFechaDeclaracion;
-
     const coincideFechaVencimiento =
       !filtroFechaVencimiento ||
       obtenerFechaInput(declaracion.fecha_vencimiento) === filtroFechaVencimiento;
-
     return (
       coincideParque &&
       coincideEstado &&
@@ -124,31 +109,25 @@ export default function Declaraciones() {
       coincideFechaVencimiento
     );
   });
-
   // ============================================
   // PAGINACIÓN
   // ============================================
-
   const [paginaActual, setPaginaActual] = useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
-
   const totalPaginas = Math.max(1, Math.ceil(declaracionesFiltradas.length / registrosPorPagina));
   const indiceInicial = (paginaActual - 1) * registrosPorPagina;
   const indiceFinal = indiceInicial + registrosPorPagina;
   const declaracionesPaginadas = declaracionesFiltradas.slice(indiceInicial, indiceFinal);
-
   const paginasVisibles = (() => {
     const paginas: number[] = [];
     const inicio = Math.max(1, paginaActual - 2);
     const fin = Math.min(totalPaginas, inicio + 4);
     const inicioAjustado = Math.max(1, fin - 4);
-
     for (let pagina = Math.max(1, inicioAjustado); pagina <= fin; pagina += 1) {
       paginas.push(pagina);
     }
     return paginas;
   })();
-
   useEffect(() => {
     setPaginaActual(1);
   }, [
@@ -158,48 +137,41 @@ export default function Declaraciones() {
     filtroFechaVencimiento,
     registrosPorPagina,
   ]);
-
   useEffect(() => {
     if (paginaActual > totalPaginas) {
       setPaginaActual(totalPaginas);
     }
   }, [paginaActual, totalPaginas]);
-
   const hayFiltrosActivos = Boolean(
     filtroParque ||
     filtroEstado ||
     filtroFechaDeclaracion ||
     filtroFechaVencimiento,
   );
-
+  // Restablece todos los filtros de búsqueda.
   const limpiarFiltros = () => {
     setFiltroParque('');
     setFiltroEstado('');
     setFiltroFechaDeclaracion('');
     setFiltroFechaVencimiento('');
   };
-
   // ============================
   // MODALES (ESTADOS)
   // ============================
-
   const [modalAbierto, setModalAbierto] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [errorFormulario, setErrorFormulario] = useState('');
   const [modoEdicion, setModoEdicion] = useState(false);
   const [idDeclaracionEditando, setIdDeclaracionEditando] = useState<number | null>(null);
-
   const [modalInformacionAbierto, setModalInformacionAbierto] = useState(false);
   const [declaracionVer, setDeclaracionVer] = useState<Declaracion | null>(null);
-
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false);
   const [declaracionEliminar, setDeclaracionEliminar] = useState<Declaracion | null>(null);
   const [eliminando, setEliminando] = useState(false);
   const [errorEliminar, setErrorEliminar] = useState('');
-
   // BLOQUEO DE SCROLL EN EL FONDO
+  // Indica si alguno de los modales está abierto.
   const unModalEstaAbierto = Boolean(modalAbierto || modalInformacionAbierto || modalEliminarAbierto);
-
   useEffect(() => {
     if (unModalEstaAbierto) {
       document.body.style.overflow = 'hidden';
@@ -210,28 +182,23 @@ export default function Declaraciones() {
       document.body.style.overflow = '';
     };
   }, [unModalEstaAbierto]);
-
   // ============================
   // FORMULARIO
   // ============================
-
   const [idParque, setIdParque] = useState('');
   const [fechaDeclaracion, setFechaDeclaracion] = useState('');
   const [fechaVencimiento, setFechaVencimiento] = useState('');
   const [estadoDeclaracion, setEstadoDeclaracion] = useState('Vigente');
-
   // ============================
   // CALCULAR VENCIMIENTO AUTOMÁTICO
   // ============================
-
   useEffect(() => {
     setFechaVencimiento(calcularFechaVencimiento(fechaDeclaracion));
   }, [fechaDeclaracion]);
-
   // ============================
   // CARGAR DATOS (API)
   // ============================
-
+  // Carga las declaraciones registradas desde la API.
   const cargarDeclaraciones = async () => {
     try {
       setCargando(true);
@@ -245,7 +212,7 @@ export default function Declaraciones() {
       setCargando(false);
     }
   };
-
+  // Carga los parques registrados desde la API.
   const cargarParques = async () => {
     try {
       const response = await api.get('/parques');
@@ -254,16 +221,14 @@ export default function Declaraciones() {
       console.error('Error cargando parques:', error);
     }
   };
-
   useEffect(() => {
     cargarDeclaraciones();
     cargarParques();
   }, []);
-
   // ============================
   // LIMPIAR
   // ============================
-
+  // Limpia los campos y errores del formulario.
   const limpiarFormulario = () => {
     setIdParque('');
     setFechaDeclaracion('');
@@ -271,22 +236,20 @@ export default function Declaraciones() {
     setEstadoDeclaracion('Vigente');
     setErrorFormulario('');
   };
-
   // ============================
   // NUEVA DECLARACIÓN
   // ============================
-
+  // Abre el formulario para registrar una nueva declaración.
   const abrirModalCrear = () => {
     limpiarFormulario();
     setModoEdicion(false);
     setIdDeclaracionEditando(null);
     setModalAbierto(true);
   };
-
   // ============================
   // EDITAR
   // ============================
-
+  // Carga la declaración seleccionada para editarla.
   const abrirModalEditar = (declaracion: Declaracion) => {
     setIdParque(
       declaracion.parque ? String(declaracion.parque.id_parque) : '',
@@ -294,17 +257,15 @@ export default function Declaraciones() {
     setFechaDeclaracion(obtenerFechaInput(declaracion.fecha_declaracion));
     setFechaVencimiento(obtenerFechaInput(declaracion.fecha_vencimiento));
     setEstadoDeclaracion(declaracion.estado_declaracion || 'Vigente');
-    
     setModoEdicion(true);
     setIdDeclaracionEditando(declaracion.id_declaracion);
     setErrorFormulario('');
     setModalAbierto(true);
   };
-
   // ============================
   // CERRAR MODAL
   // ============================
-
+  // Cierra el formulario y restablece sus datos.
   const cerrarModal = () => {
     if (guardando) return;
     setModalAbierto(false);
@@ -312,19 +273,16 @@ export default function Declaraciones() {
     setModoEdicion(false);
     setIdDeclaracionEditando(null);
   };
-
   // ============================
   // GUARDAR
   // ============================
-
+  // Registra o actualiza una declaración.
   const guardarDeclaracion = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setGuardando(true);
     setErrorFormulario('');
-
     try {
       const token = localStorage.getItem('token');
-
       if (!idParque) {
         setErrorFormulario('Debe seleccionar un parque.');
         setGuardando(false);
@@ -340,13 +298,11 @@ export default function Declaraciones() {
         setGuardando(false);
         return;
       }
-
       const datosDeclaracion = {
         id_parque: Number(idParque),
         fecha_declaracion: fechaDeclaracion,
         estado_declaracion: estadoDeclaracion,
       };
-
       if (modoEdicion && idDeclaracionEditando !== null) {
         await api.patch(`/declaraciones/${idDeclaracionEditando}`, datosDeclaracion, {
           headers: { Authorization: `Bearer ${token}` },
@@ -356,7 +312,6 @@ export default function Declaraciones() {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
-
       setModalAbierto(false);
       limpiarFormulario();
       setModoEdicion(false);
@@ -370,7 +325,6 @@ export default function Declaraciones() {
         navigate('/login');
         return;
       }
-
       const message = error.response?.data?.message;
       if (Array.isArray(message)) {
         setErrorFormulario(message.join(', '));
@@ -387,58 +341,51 @@ export default function Declaraciones() {
       setGuardando(false);
     }
   };
-
   // ============================
   // VER INFORMACIÓN
   // ============================
-
+  // Abre el modal con la información de la declaración.
   const abrirModalInformacion = (declaracion: Declaracion) => {
     setDeclaracionVer(declaracion);
     setModalInformacionAbierto(true);
   };
-
+  // Cierra el modal de información.
   const cerrarModalInformacion = () => {
     setModalInformacionAbierto(false);
     setDeclaracionVer(null);
   };
-
   // ============================
   // ABRIR ELIMINAR
   // ============================
-
+  // Abre el modal para confirmar la eliminación.
   const abrirModalEliminar = (declaracion: Declaracion) => {
     setDeclaracionEliminar(declaracion);
     setErrorEliminar('');
     setModalEliminarAbierto(true);
   };
-
   // ============================
   // CERRAR ELIMINAR
   // ============================
-
+  // Cierra el modal de eliminación.
   const cerrarModalEliminar = () => {
     if (eliminando) return;
     setModalEliminarAbierto(false);
     setDeclaracionEliminar(null);
     setErrorEliminar('');
   };
-
   // ============================
   // CONFIRMAR ELIMINAR
   // ============================
-
+  // Elimina la declaración seleccionada.
   const confirmarEliminarDeclaracion = async () => {
     if (!declaracionEliminar) return;
-
     try {
       setEliminando(true);
       setErrorEliminar('');
       const token = localStorage.getItem('token');
-
       await api.delete(`/declaraciones/${declaracionEliminar.id_declaracion}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       setModalEliminarAbierto(false);
       setDeclaracionEliminar(null);
       await cargarDeclaraciones();
@@ -462,11 +409,11 @@ export default function Declaraciones() {
       setEliminando(false);
     }
   };
-
   // ============================
   // CERRAR MODALES CON ESC
   // ============================
   useEffect(() => {
+    // Permite cerrar los modales con la tecla Escape.
     const manejarEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (modalInformacionAbierto) return cerrarModalInformacion();
@@ -476,11 +423,10 @@ export default function Declaraciones() {
     window.addEventListener('keydown', manejarEscape);
     return () => window.removeEventListener('keydown', manejarEscape);
   }, [modalInformacionAbierto, modalEliminarAbierto, modalAbierto, eliminando, guardando]);
-
   // ============================
   // COLOR ESTADO
   // ============================
-
+  // Define el estilo visual según el estado de la declaración.
   const obtenerClaseEstado = (estado: string) => {
     switch (estado) {
       case 'Vigente':
@@ -493,16 +439,14 @@ export default function Declaraciones() {
         return 'inline-flex rounded-md bg-slate-500/20 border border-slate-500/30 px-2.5 py-1 text-xs font-bold text-slate-300';
     }
   };
-
   return (
-    <div className="relative min-h-screen w-full font-sans antialiased text-white flex flex-col overflow-x-hidden">
-      
+    <div className="relative min-h-screen w-full font-sans antialiased text-white flex flex-col overflow-x-hidden lg:pl-[270px]">
+      <SidebarCatastro />
       {/* 1. IMAGEN DE FONDO FIJA */}
       <div
         className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${fondoGrecia})` }}
       />
-
       {/* 2. OVERLAY OSCURO */}
       <div
         className="fixed inset-0 z-0"
@@ -511,27 +455,22 @@ export default function Declaraciones() {
             'radial-gradient(circle at 12% 12%, rgba(5, 25, 36, 0.98) 0%, rgba(5, 25, 36, 0.88) 28%, transparent 58%), linear-gradient(180deg, rgba(6, 20, 28, 0.85) 0%, rgba(6, 20, 28, 0.93) 100%)',
         }}
       />
-
       {/* 3. FRANJA TRICOLOR INSTITUCIONAL */}
       <div className="fixed inset-x-0 top-0 z-50 grid h-1.5 grid-cols-[2.2fr_1fr_.7fr]">
         <span className="bg-[#315F73]" />
         <span className="bg-[#18843B]" />
         <span className="bg-[#D4112E]" />
       </div>
-
       {/* 4. CABECERA FLOTANTE OSCURA CON BOTÓN VOLVER TEXTUAL */}
       <header className="relative z-30 w-full border-b border-white/10 bg-[#0B212D]/80 backdrop-blur-xl px-6 lg:px-12 py-3.5 shadow-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
-          
           <div className="flex items-center gap-4">
             <img
               src={logoMunicipalidad}
               alt="Municipalidad de Grecia"
               className="h-11 w-auto object-contain drop-shadow-md"
             />
-            
             <div className="hidden h-9 w-[1px] bg-white/20 sm:block" />
-            
             <div>
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#86efac]">
                 SISTEMA DE CATASTRO
@@ -544,7 +483,6 @@ export default function Declaraciones() {
               </p>
             </div>
           </div>
-
           <div className="flex flex-col items-end gap-2.5">
             <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3.5 py-1.5 backdrop-blur-md">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#18843B] text-xs font-bold text-white shadow-sm">
@@ -555,7 +493,6 @@ export default function Declaraciones() {
                 <p className="text-[10px] text-slate-300">rodriguezderek12@gmail.com</p>
               </div>
             </div>
-
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -564,7 +501,6 @@ export default function Declaraciones() {
               >
                 Volver al panel
               </button>
-
               <button
                 type="button"
                 onClick={() => {
@@ -581,15 +517,12 @@ export default function Declaraciones() {
               </button>
             </div>
           </div>
-
         </div>
       </header>
-
       {/* ====================================== */}
       {/* CONTENIDO PRINCIPAL */}
       {/* ====================================== */}
       <main className="relative z-20 mx-auto w-full max-w-7xl px-6 lg:px-12 py-8 flex-1">
-        
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <h2 className="flex items-center gap-2 text-xl font-bold text-white tracking-tight">
@@ -609,7 +542,6 @@ export default function Declaraciones() {
             Nueva declaración
           </button>
         </div>
-
         {/* ====================================== */}
         {/* FILTROS DE BÚSQUEDA */}
         {/* ====================================== */}
@@ -633,7 +565,6 @@ export default function Declaraciones() {
               Limpiar filtros
             </button>
           </div>
-
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="min-w-0">
               <label className="mb-1.5 block text-sm font-medium text-slate-300">Parque</label>
@@ -682,7 +613,6 @@ export default function Declaraciones() {
               />
             </div>
           </div>
-
           <div className="mt-5 border-t border-white/10 pt-4">
             <p className="text-sm text-slate-400">
               Mostrando <span className="font-bold text-white">{declaracionesFiltradas.length}</span>
@@ -690,14 +620,12 @@ export default function Declaraciones() {
             </p>
           </div>
         </div>
-
         {/* CARGANDO */}
         {cargando && (
           <div className="rounded-2xl border border-white/10 bg-[#0d222e]/85 p-8 text-center text-slate-300 backdrop-blur-md">
             Cargando declaraciones...
           </div>
         )}
-
         {/* ERROR */}
         {!cargando && error && (
           <div className="rounded-2xl border border-red-500/30 bg-red-900/40 p-6 backdrop-blur-md">
@@ -711,7 +639,6 @@ export default function Declaraciones() {
             </button>
           </div>
         )}
-
         {/* ====================================== */}
         {/* TABLA DE DECLARACIONES (ANCHO AMPLIADO Y ACCIONES AJUSTADAS) */}
         {/* ====================================== */}
@@ -738,7 +665,6 @@ export default function Declaraciones() {
                     </th>
                   </tr>
                 </thead>
-
                 <tbody className="divide-y divide-white/5">
                   {declaracionesFiltradas.length === 0 ? (
                     <tr>
@@ -764,21 +690,17 @@ export default function Declaraciones() {
                             </p>
                           )}
                         </td>
-
                         <td className="whitespace-nowrap px-5 py-4 align-middle text-sm text-slate-300">
                           {mostrarFecha(declaracion.fecha_declaracion)}
                         </td>
-
                         <td className="whitespace-nowrap px-5 py-4 align-middle text-sm text-slate-300">
                           {mostrarFecha(declaracion.fecha_vencimiento)}
                         </td>
-
                         <td className="whitespace-nowrap px-5 py-4 align-middle">
                           <span className={obtenerClaseEstado(declaracion.estado_declaracion)}>
                             {declaracion.estado_declaracion}
                           </span>
                         </td>
-
                         <td className="whitespace-nowrap px-5 py-4 pr-10 align-middle">
                           <div className="flex flex-nowrap items-center gap-2">
                             <button
@@ -790,7 +712,6 @@ export default function Declaraciones() {
                               <Eye size={15} />
                               Info
                             </button>
-
                             <button
                               type="button"
                               title="Editar"
@@ -800,7 +721,6 @@ export default function Declaraciones() {
                               <Edit3 size={15} />
                               Editar
                             </button>
-
                             <button
                               type="button"
                               title="Eliminar"
@@ -818,7 +738,6 @@ export default function Declaraciones() {
                 </tbody>
               </table>
             </div>
-
             {/* PAGINACIÓN */}
             {declaracionesFiltradas.length > 0 && (
               <div className="flex flex-col gap-4 bg-[#0B212D]/90 border-t border-white/10 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
@@ -828,7 +747,6 @@ export default function Declaraciones() {
                     <span className="font-bold text-white">{Math.min(indiceFinal, declaracionesFiltradas.length)}</span> de{' '}
                     <span className="font-bold text-white">{declaracionesFiltradas.length}</span> declaraciones
                   </p>
-
                   <div className="flex items-center gap-2">
                     <label htmlFor="registrosPorPagina" className="text-sm text-slate-400">
                       Registros por página:
@@ -845,7 +763,6 @@ export default function Declaraciones() {
                     </select>
                   </div>
                 </div>
-
                 <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
                   <button
                     type="button"
@@ -855,7 +772,6 @@ export default function Declaraciones() {
                   >
                     ← Anterior
                   </button>
-
                   {paginasVisibles.map((pagina) => (
                     <button
                       key={pagina}
@@ -870,7 +786,6 @@ export default function Declaraciones() {
                       {pagina}
                     </button>
                   ))}
-
                   <button
                     type="button"
                     onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
@@ -885,7 +800,6 @@ export default function Declaraciones() {
           </section>
         )}
       </main>
-
       {/* =================================================
           MODAL CREAR / EDITAR - SIN DOBLE SCROLL
       ================================================= */}
@@ -910,14 +824,12 @@ export default function Declaraciones() {
                 ✕
               </button>
             </div>
-
             <form onSubmit={guardarDeclaracion} className="flex-1 overflow-y-auto p-10">
               {errorFormulario && (
                 <div className="mb-10 rounded-xl border border-red-500/30 bg-red-900/40 p-6 text-base font-semibold text-red-300">
                   {errorFormulario}
                 </div>
               )}
-
               <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
                 <div className="md:col-span-2">
                   <label className="mb-3 block text-base font-bold text-slate-300">Parque <span className="text-red-500">*</span></label>
@@ -935,7 +847,6 @@ export default function Declaraciones() {
                     ))}
                   </select>
                 </div>
-
                 <div>
                   <label className="mb-3 block text-base font-bold text-slate-300">Fecha de declaración <span className="text-red-500">*</span></label>
                   <input
@@ -946,7 +857,6 @@ export default function Declaraciones() {
                     className="w-full rounded-xl border border-white/20 bg-[#071923] p-4 text-base text-white focus:border-emerald-500 focus:outline-none [color-scheme:dark]"
                   />
                 </div>
-
                 <div>
                   <label className="mb-3 block text-base font-bold text-slate-300">Fecha de vencimiento</label>
                   <input
@@ -957,7 +867,6 @@ export default function Declaraciones() {
                   />
                   <p className="mt-2 text-xs text-slate-400">Se calcula automáticamente a 5 años de la declaración.</p>
                 </div>
-
                 <div className="md:col-span-2">
                   <label className="mb-3 block text-base font-bold text-slate-300">Estado de la declaración <span className="text-red-500">*</span></label>
                   <select
@@ -972,7 +881,6 @@ export default function Declaraciones() {
                   </select>
                 </div>
               </div>
-
               <div className="mt-12 flex justify-end gap-5 border-t border-white/10 pt-10 flex-shrink-0">
                 <button
                   type="button"
@@ -994,7 +902,6 @@ export default function Declaraciones() {
           </div>
         </div>
       )}
-
       {/* =================================================
           MODAL INFORMACIÓN - SIN DOBLE SCROLL
       ================================================= */}
@@ -1014,7 +921,6 @@ export default function Declaraciones() {
                 ✕
               </button>
             </div>
-            
             <div className="p-10 flex-1 overflow-y-auto">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-6 md:col-span-2">
@@ -1054,7 +960,6 @@ export default function Declaraciones() {
           </div>
         </div>
       )}
-
       {/* =================================================
           MODAL ELIMINAR - SIN DOBLE SCROLL
       ================================================= */}
@@ -1065,7 +970,6 @@ export default function Declaraciones() {
               <h2 className="text-3xl font-black text-white tracking-tighter">Eliminar declaración</h2>
               <p className="mt-2 text-base text-slate-400">Esta acción eliminará el registro permanentemente.</p>
             </div>
-            
             <div className="p-10 flex-1 overflow-y-auto">
               <div className="rounded-2xl border border-red-500/30 bg-red-900/30 p-8 flex flex-col items-center justify-center text-center">
                 <p className="text-base text-red-300">¿Está seguro de que desea eliminar esta declaración?</p>
@@ -1074,14 +978,12 @@ export default function Declaraciones() {
                 </p>
                 <p className="mt-3 text-lg text-slate-400">Fecha de declaración: {mostrarFecha(declaracionEliminar.fecha_declaracion)}</p>
               </div>
-
               {errorEliminar && (
                 <div className="mt-8 rounded-xl border border-red-500/30 bg-red-900/50 p-6 text-base font-semibold text-red-300">
                   <p className="font-black text-lg text-red-300">No se puede eliminar la declaración</p>
                   <p className="mt-2 text-base text-red-400">{errorEliminar}</p>
                 </div>
               )}
-
               <div className="mt-12 flex justify-end gap-5 flex-shrink-0 pb-5">
                 <button
                   type="button"
@@ -1104,7 +1006,6 @@ export default function Declaraciones() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

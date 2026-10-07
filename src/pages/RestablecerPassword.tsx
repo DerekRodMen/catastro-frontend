@@ -2,93 +2,86 @@ import {
   useState,
   type FormEvent,
 } from 'react';
-
 import {
-  Lock,
   ArrowLeft,
+  Check,
+  Eye,
+  EyeOff,
+  Lock,
+  TriangleAlert,
 } from 'lucide-react';
-
 import {
   useNavigate,
   useSearchParams,
 } from 'react-router-dom';
-
 import {
   api,
 } from '../services/api';
-
+import AuthLayout
+  from '../components/AuthLayout';
+// Componente principal para restablecer la contraseña mediante un token de recuperación.
 export default function RestablecerPassword() {
+  // Permite redirigir al usuario entre las rutas de autenticación.
   const navigate =
     useNavigate();
-
+  // Estados utilizados por el formulario de restablecimiento.
   const [
     searchParams,
-  ] = useSearchParams();
-
+  ] =
+    useSearchParams();
+  // Obtiene el token de recuperación desde los parámetros de la URL.
   const token =
-    searchParams.get('token');
-
+    searchParams.get(
+      'token',
+    );
   const [
     password,
     setPassword,
   ] = useState('');
-
   const [
     confirmarPassword,
     setConfirmarPassword,
   ] = useState('');
-
   const [
     mostrarPassword,
     setMostrarPassword,
   ] = useState(false);
-
   const [
     cargando,
     setCargando,
   ] = useState(false);
-
   const [
     error,
     setError,
   ] = useState('');
-
   const [
     completado,
     setCompletado,
   ] = useState(false);
-
-  // ============================
-  // RESTABLECER CONTRASEÑA
-  // ============================
-
+  // Valida y envía la nueva contraseña al backend.
   const handleSubmit =
     async (
       event:
         FormEvent<HTMLFormElement>,
     ) => {
       event.preventDefault();
-
       setError('');
-
+      // Verifica que exista un token válido antes de continuar.
       if (!token) {
         setError(
           'El enlace de recuperación no es válido.',
         );
-
         return;
       }
-
       if (
-        password.length < 8
+        password.length <
+        8
       ) {
         setError(
           'La contraseña debe tener al menos 8 caracteres.',
         );
-
         return;
       }
-
       if (
         password !==
         confirmarPassword
@@ -96,13 +89,11 @@ export default function RestablecerPassword() {
         setError(
           'Las contraseñas no coinciden.',
         );
-
         return;
       }
-
       try {
         setCargando(true);
-
+        // Envía la nueva contraseña al endpoint de recuperación.
         await api.post(
           '/usuarios/restablecer-password',
           {
@@ -110,7 +101,6 @@ export default function RestablecerPassword() {
             password,
           },
         );
-
         setCompletado(
           true,
         );
@@ -119,13 +109,14 @@ export default function RestablecerPassword() {
           'Error restableciendo contraseña:',
           error,
         );
-
         const message =
-          error.response?.data
+          error.response
+            ?.data
             ?.message;
-
         if (
-          Array.isArray(message)
+          Array.isArray(
+            message,
+          )
         ) {
           setError(
             message.join(', '),
@@ -143,185 +134,192 @@ export default function RestablecerPassword() {
         setCargando(false);
       }
     };
-
-  // ============================
-  // TOKEN NO EXISTE
-  // ============================
-
   if (!token) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
-
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg">
-
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-2xl text-red-600">
-            !
+      <AuthLayout>
+        <section className="auth-card">
+          <div className="auth-card__body text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600">
+              <TriangleAlert
+                size={29}
+              />
+            </div>
+            <h2 className="mt-5 text-2xl font-bold text-[#16313E]">
+              Enlace inválido
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              El enlace de recuperación no contiene un token válido.
+            </p>
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  '/login',
+                )
+              }
+              className="mt-6 w-full rounded-lg bg-[#315F73] py-3 text-sm font-semibold text-white transition hover:bg-[#244C5F]"
+            >
+              Volver al inicio de sesión
+            </button>
           </div>
-
-          <h1 className="mt-5 text-2xl font-bold text-slate-900">
-            Enlace inválido
-          </h1>
-
-          <p className="mt-3 text-sm text-slate-500">
-            El enlace de recuperación no contiene
-            un token válido.
-          </p>
-
-          <button
-            type="button"
-            onClick={() =>
-              navigate('/login')
-            }
-            className="mt-6 w-full rounded-lg bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            Volver al login
-          </button>
-
-        </div>
-
-      </div>
+        </section>
+      </AuthLayout>
     );
   }
-
-  // ============================
-  // COMPLETADO
-  // ============================
-
+  // Muestra la confirmación cuando la contraseña se actualiza correctamente.
   if (completado) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
-
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg">
-
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl font-bold text-green-700">
-            ✓
+      <AuthLayout>
+        <section className="auth-card">
+          <div className="auth-card__body text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-700">
+              <Check
+                size={30}
+                strokeWidth={3}
+              />
+            </div>
+            <h2 className="mt-5 text-2xl font-bold text-[#16313E]">
+              Contraseña actualizada
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              Su contraseña fue restablecida correctamente.
+              Ya puede iniciar sesión con la nueva contraseña.
+            </p>
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  '/login',
+                )
+              }
+              className="mt-6 w-full rounded-lg bg-[#315F73] py-3 text-sm font-semibold text-white transition hover:bg-[#244C5F]"
+            >
+              Iniciar sesión
+            </button>
           </div>
-
-          <h1 className="mt-5 text-2xl font-bold text-slate-900">
-            Contraseña actualizada
-          </h1>
-
-          <p className="mt-3 text-sm text-slate-500">
-            Su contraseña fue restablecida correctamente.
-            Ya puede iniciar sesión con la nueva contraseña.
-          </p>
-
-          <button
-            type="button"
-            onClick={() =>
-              navigate('/login')
-            }
-            className="mt-6 w-full rounded-lg bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            Iniciar sesión
-          </button>
-
-        </div>
-
-      </div>
+        </section>
+      </AuthLayout>
     );
   }
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
-
-      <div className="w-full max-w-md">
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
-
+    <AuthLayout>
+      <section className="auth-card">
+        <div className="auth-card__body">
           <button
             type="button"
             onClick={() =>
-              navigate('/login')
+              navigate(
+                '/login',
+              )
             }
-            className="mb-6 flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900"
+            className="mb-6 flex items-center gap-2 text-sm font-semibold text-[#315F73] transition hover:text-[#244C5F]"
           >
             <ArrowLeft size={17} />
             Volver
           </button>
-
-          <div className="mb-6">
-
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white">
-              <Lock size={26} />
-            </div>
-
-            <h1 className="text-center text-2xl font-bold text-slate-900">
+          <div className="auth-card__icon">
+            <Lock size={22} />
+          </div>
+          <div className="auth-card__header">
+            <h2>
               Restablecer contraseña
-            </h1>
-
-            <p className="mt-2 text-center text-sm text-slate-500">
+            </h2>
+            <p>
               Ingrese una nueva contraseña para su cuenta.
             </p>
-
           </div>
-
           {error && (
             <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
-
           <form
             onSubmit={handleSubmit}
             className="space-y-5"
           >
-
             <div>
-
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-semibold text-[#16313E]">
                 Nueva contraseña
               </label>
-
-              <input
-                type={
-                  mostrarPassword
-                    ? 'text'
-                    : 'password'
-                }
-                value={password}
-                onChange={(event) =>
-                  setPassword(
-                    event.target.value,
-                  )
-                }
-                required
-                minLength={8}
-                placeholder="Mínimo 8 caracteres"
-                className="w-full rounded-lg border border-slate-300 px-3 py-3 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-              />
-
+              <div className="relative">
+                <Lock
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type={
+                    mostrarPassword
+                      ? 'text'
+                      : 'password'
+                  }
+                  value={password}
+                  onChange={(event) =>
+                    setPassword(
+                      event.target.value,
+                    )
+                  }
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  placeholder="Mínimo 8 caracteres"
+                  className="w-full rounded-lg border border-slate-300 py-3 pl-10 pr-12 text-sm outline-none transition focus:border-[#315F73] focus:ring-2 focus:ring-[#E8F0F4]"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMostrarPassword(
+                      !mostrarPassword,
+                    )
+                  }
+                  aria-label={
+                    mostrarPassword
+                      ? 'Ocultar contraseñas'
+                      : 'Mostrar contraseñas'
+                  }
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-[#315F73]"
+                >
+                  {mostrarPassword
+                    ? (
+                      <EyeOff size={19} />
+                    )
+                    : (
+                      <Eye size={19} />
+                    )}
+                </button>
+              </div>
             </div>
-
             <div>
-
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-semibold text-[#16313E]">
                 Confirmar contraseña
               </label>
-
-              <input
-                type={
-                  mostrarPassword
-                    ? 'text'
-                    : 'password'
-                }
-                value={
-                  confirmarPassword
-                }
-                onChange={(event) =>
-                  setConfirmarPassword(
-                    event.target.value,
-                  )
-                }
-                required
-                placeholder="Repita la contraseña"
-                className="w-full rounded-lg border border-slate-300 px-3 py-3 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-              />
-
+              <div className="relative">
+                <Lock
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type={
+                    mostrarPassword
+                      ? 'text'
+                      : 'password'
+                  }
+                  value={
+                    confirmarPassword
+                  }
+                  onChange={(event) =>
+                    setConfirmarPassword(
+                      event.target.value,
+                    )
+                  }
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  placeholder="Repita la contraseña"
+                  className="w-full rounded-lg border border-slate-300 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-[#315F73] focus:ring-2 focus:ring-[#E8F0F4]"
+                />
+              </div>
             </div>
-
             <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
-
               <input
                 type="checkbox"
                 checked={
@@ -332,28 +330,22 @@ export default function RestablecerPassword() {
                     event.target.checked,
                   )
                 }
+                className="accent-[#315F73]"
               />
-
               Mostrar contraseñas
-
             </label>
-
             <button
               type="submit"
               disabled={cargando}
-              className="w-full rounded-lg bg-slate-900 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-lg bg-[#315F73] py-3 text-sm font-semibold text-white transition hover:bg-[#244C5F] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {cargando
                 ? 'Actualizando...'
                 : 'Restablecer contraseña'}
             </button>
-
           </form>
-
         </div>
-
-      </div>
-
-    </div>
+      </section>
+    </AuthLayout>
   );
 }

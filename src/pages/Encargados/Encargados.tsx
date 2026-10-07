@@ -4,11 +4,10 @@ import {
   type FormEvent,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
-
 import { api } from '../../services/api';
 import fondoGrecia from '../../assets/grecia-login.jpg';
 import logoMunicipalidad from '../../assets/logo-municipalidad-grecia.webp';
-
+import SidebarCatastro from '../../components/SidebarCatastro';
 interface Encargado {
   id_encargado: number;
   entidad_encargada: string;
@@ -17,17 +16,15 @@ interface Encargado {
   correo_encargado: string;
   telefono_encargado: string;
 }
-
+// Componente principal para la gestión de encargados.
 export default function Encargados() {
   const navigate = useNavigate();
-
   // ============================================
   // DATOS
   // ============================================
   const [encargados, setEncargados] = useState<Encargado[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
-
   // ============================================
   // FILTROS DE BÚSQUEDA
   // ============================================
@@ -36,13 +33,13 @@ export default function Encargados() {
   const [filtroRepresentante, setFiltroRepresentante] = useState('');
   const [filtroCorreo, setFiltroCorreo] = useState('');
   const [filtroTelefono, setFiltroTelefono] = useState('');
-
+  // Normaliza texto para facilitar las búsquedas.
   const normalizarTexto = (valor: string | null | undefined) =>
     (valor ?? '').toLowerCase().trim();
-
+  // Elimina caracteres no numéricos para comparar datos.
   const normalizarNumeros = (valor: string | null | undefined) =>
     (valor ?? '').replace(/\D/g, '');
-
+  // Filtra los encargados según los criterios seleccionados.
   const encargadosFiltrados = encargados.filter((encargado) => {
     const coincideEntidad = normalizarTexto(encargado.entidad_encargada).includes(
       normalizarTexto(filtroEntidad),
@@ -59,7 +56,6 @@ export default function Encargados() {
     const coincideTelefono = normalizarNumeros(encargado.telefono_encargado).includes(
       normalizarNumeros(filtroTelefono),
     );
-
     return (
       coincideEntidad &&
       coincideCedula &&
@@ -68,18 +64,15 @@ export default function Encargados() {
       coincideTelefono
     );
   });
-
   // ============================================
   // PAGINACIÓN
   // ============================================
   const [paginaActual, setPaginaActual] = useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
-
   const totalPaginas = Math.max(1, Math.ceil(encargadosFiltrados.length / registrosPorPagina));
   const indiceInicial = (paginaActual - 1) * registrosPorPagina;
   const indiceFinal = indiceInicial + registrosPorPagina;
   const encargadosPaginados = encargadosFiltrados.slice(indiceInicial, indiceFinal);
-
   useEffect(() => {
     setPaginaActual(1);
   }, [
@@ -90,13 +83,11 @@ export default function Encargados() {
     filtroTelefono,
     registrosPorPagina,
   ]);
-
   useEffect(() => {
     if (paginaActual > totalPaginas) {
       setPaginaActual(totalPaginas);
     }
   }, [paginaActual, totalPaginas]);
-
   const hayFiltrosActivos = Boolean(
     filtroEntidad ||
     filtroCedula ||
@@ -104,7 +95,7 @@ export default function Encargados() {
     filtroCorreo ||
     filtroTelefono,
   );
-
+  // Restablece todos los filtros de búsqueda.
   const limpiarFiltros = () => {
     setFiltroEntidad('');
     setFiltroCedula('');
@@ -112,7 +103,6 @@ export default function Encargados() {
     setFiltroCorreo('');
     setFiltroTelefono('');
   };
-
   // ============================================
   // MODALES (ESTADOS)
   // ============================================
@@ -121,18 +111,15 @@ export default function Encargados() {
   const [idEncargadoEditando, setIdEncargadoEditando] = useState<number | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [errorFormulario, setErrorFormulario] = useState('');
-
   const [modalInformacionAbierto, setModalInformacionAbierto] = useState(false);
   const [encargadoVer, setEncargadoVer] = useState<Encargado | null>(null);
-
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false);
   const [encargadoEliminar, setEncargadoEliminar] = useState<Encargado | null>(null);
   const [eliminando, setEliminando] = useState(false);
   const [errorEliminar, setErrorEliminar] = useState('');
-
   // Lógica para bloquear el desplazamiento del fondo cuando un modal está abierto
+  // Indica si alguno de los modales está abierto.
   const unModalEstaAbierto = Boolean(modalAbierto || modalEliminarAbierto || modalInformacionAbierto);
-
   useEffect(() => {
     if (unModalEstaAbierto) {
       document.body.style.overflow = 'hidden';
@@ -143,7 +130,6 @@ export default function Encargados() {
       document.body.style.overflow = '';
     };
   }, [unModalEstaAbierto]);
-
   // ============================================
   // FORMULARIO
   // ============================================
@@ -152,44 +138,41 @@ export default function Encargados() {
   const [representanteLegal, setRepresentanteLegal] = useState('');
   const [correoEncargado, setCorreoEncargado] = useState('');
   const [telefonoEncargado, setTelefonoEncargado] = useState('');
-
   // ============================================
   // FORMATEAR CÉDULA JURÍDICA
   // ============================================
+  // Da formato automático a la cédula jurídica.
   const formatearCedulaJuridica = (valor: string) => {
     const numeros = valor.replace(/\D/g, '').slice(0, 10);
     if (numeros.length <= 1) return numeros;
     if (numeros.length <= 4) return `${numeros.slice(0, 1)}-${numeros.slice(1)}`;
     return `${numeros.slice(0, 1)}-${numeros.slice(1, 4)}-${numeros.slice(4, 10)}`;
   };
-
   // ============================================
   // FORMATEAR TELÉFONO
   // ============================================
+  // Da formato automático al número de teléfono.
   const formatearTelefono = (valor: string) => {
     const numeros = valor.replace(/\D/g, '').slice(0, 8);
     if (numeros.length <= 4) return numeros;
     return `${numeros.slice(0, 4)}-${numeros.slice(4)}`;
   };
-
   // ============================================
   // CARGAR ENCARGADOS
   // ============================================
+  // Carga los encargados registrados desde la API.
   const cargarEncargados = async () => {
     try {
       setCargando(true);
       setError('');
       const token = localStorage.getItem('token');
-
       if (!token) {
         navigate('/login');
         return;
       }
-
       const response = await api.get('/encargados', {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       setEncargados(response.data);
     } catch (error: any) {
       console.error('Error cargando encargados:', error);
@@ -204,14 +187,13 @@ export default function Encargados() {
       setCargando(false);
     }
   };
-
   useEffect(() => {
     cargarEncargados();
   }, []);
-
   // ============================================
   // LIMPIAR FORMULARIO
   // ============================================
+  // Limpia los campos y errores del formulario.
   const limpiarFormulario = () => {
     setEntidadEncargada('');
     setCedulaJuridica('');
@@ -220,36 +202,35 @@ export default function Encargados() {
     setTelefonoEncargado('');
     setErrorFormulario('');
   };
-
   // ============================================
   // ABRIR NUEVO ENCARGADO
   // ============================================
+  // Abre el formulario para registrar un nuevo encargado.
   const abrirModalCrear = () => {
     limpiarFormulario();
     setModoEdicion(false);
     setIdEncargadoEditando(null);
     setModalAbierto(true);
   };
-
   // ============================================
   // ABRIR EDITAR
   // ============================================
+  // Carga los datos del encargado seleccionado para editarlo.
   const abrirModalEditar = (encargado: Encargado) => {
     setEntidadEncargada(encargado.entidad_encargada ?? '');
     setCedulaJuridica(encargado.cedula_juridica ?? '');
     setRepresentanteLegal(encargado.representante_legal ?? '');
     setCorreoEncargado(encargado.correo_encargado ?? '');
     setTelefonoEncargado(encargado.telefono_encargado ?? '');
-
     setModoEdicion(true);
     setIdEncargadoEditando(encargado.id_encargado);
     setErrorFormulario('');
     setModalAbierto(true);
   };
-
   // ============================================
   // CERRAR MODAL
   // ============================================
+  // Cierra el formulario y restablece sus datos.
   const cerrarModal = () => {
     if (guardando) return;
     setModalAbierto(false);
@@ -257,14 +238,13 @@ export default function Encargados() {
     setIdEncargadoEditando(null);
     limpiarFormulario();
   };
-
   // ============================================
   // GUARDAR ENCARGADO
   // ============================================
+  // Registra o actualiza un encargado.
   const guardarEncargado = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorFormulario('');
-
     if (!entidadEncargada.trim()) {
       setErrorFormulario('Debe ingresar la entidad encargada.');
       return;
@@ -281,11 +261,9 @@ export default function Encargados() {
       setErrorFormulario('Debe ingresar el número de teléfono.');
       return;
     }
-
     const entidadNormalizada = normalizarTexto(entidadEncargada);
     const representanteNormalizado = normalizarTexto(representanteLegal);
     const cedulaNormalizada = normalizarNumeros(cedulaJuridica);
-
     const encargadoDuplicado = encargados.find(
       (encargado) =>
         encargado.id_encargado !== idEncargadoEditando &&
@@ -294,7 +272,6 @@ export default function Encargados() {
           (cedulaNormalizada !== '' &&
             normalizarNumeros(encargado.cedula_juridica) === cedulaNormalizada)),
     );
-
     if (encargadoDuplicado) {
       if (normalizarTexto(encargadoDuplicado.entidad_encargada) === entidadNormalizada) {
         setErrorFormulario('Ya existe un encargado con la misma entidad encargada.');
@@ -312,7 +289,6 @@ export default function Encargados() {
         return;
       }
     }
-
     try {
       setGuardando(true);
       const token = localStorage.getItem('token');
@@ -320,7 +296,6 @@ export default function Encargados() {
         navigate('/login');
         return;
       }
-
       const datosEncargado = {
         entidad_encargada: entidadEncargada.trim(),
         cedula_juridica: cedulaJuridica.trim() || null,
@@ -328,7 +303,6 @@ export default function Encargados() {
         correo_encargado: correoEncargado.trim().toLowerCase(),
         telefono_encargado: telefonoEncargado.trim(),
       };
-
       if (modoEdicion && idEncargadoEditando !== null) {
         await api.patch(`/encargados/${idEncargadoEditando}`, datosEncargado, {
           headers: { Authorization: `Bearer ${token}` },
@@ -338,7 +312,6 @@ export default function Encargados() {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
-
       setModalAbierto(false);
       setModoEdicion(false);
       setIdEncargadoEditando(null);
@@ -366,59 +339,55 @@ export default function Encargados() {
       setGuardando(false);
     }
   };
-
   // ============================================
   // VER INFORMACIÓN
   // ============================================
+  // Abre el modal con la información del encargado.
   const abrirModalInformacion = (encargado: Encargado) => {
     setEncargadoVer(encargado);
     setModalInformacionAbierto(true);
   };
-
+  // Cierra el modal de información.
   const cerrarModalInformacion = () => {
     setModalInformacionAbierto(false);
     setEncargadoVer(null);
   };
-
   // ============================================
   // ABRIR ELIMINAR
   // ============================================
+  // Abre el modal para confirmar la eliminación.
   const abrirModalEliminar = (encargado: Encargado) => {
     setEncargadoEliminar(encargado);
     setErrorEliminar('');
     setModalEliminarAbierto(true);
   };
-
   // ============================================
   // CERRAR ELIMINAR
   // ============================================
+  // Cierra el modal de eliminación.
   const cerrarModalEliminar = () => {
     if (eliminando) return;
     setModalEliminarAbierto(false);
     setEncargadoEliminar(null);
     setErrorEliminar('');
   };
-
   // ============================================
   // CONFIRMAR ELIMINAR
   // ============================================
+  // Elimina el encargado seleccionado.
   const confirmarEliminar = async () => {
     if (!encargadoEliminar) return;
-
     try {
       setEliminando(true);
       setErrorEliminar('');
       const token = localStorage.getItem('token');
-
       if (!token) {
         navigate('/login');
         return;
       }
-
       await api.delete(`/encargados/${encargadoEliminar.id_encargado}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       setModalEliminarAbierto(false);
       setEncargadoEliminar(null);
       await cargarEncargados();
@@ -442,31 +411,28 @@ export default function Encargados() {
       setEliminando(false);
     }
   };
-
   // ============================================
   // CERRAR MODALES CON ESC
   // ============================================
   useEffect(() => {
+    // Permite cerrar los modales con la tecla Escape.
     const manejarEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (modalInformacionAbierto) return cerrarModalInformacion();
       if (modalEliminarAbierto) return cerrarModalEliminar();
       if (modalAbierto) return cerrarModal();
     };
-
     document.addEventListener('keydown', manejarEscape);
     return () => document.removeEventListener('keydown', manejarEscape);
   }, [modalInformacionAbierto, modalEliminarAbierto, modalAbierto, guardando, eliminando]);
-
   return (
-    <div className="relative min-h-screen w-full font-sans antialiased text-white flex flex-col overflow-x-hidden">
-      
+    <div className="relative min-h-screen w-full font-sans antialiased text-white flex flex-col overflow-x-hidden lg:pl-[270px]">
+      <SidebarCatastro />
       {/* 1. IMAGEN DE FONDO FIJA */}
       <div
         className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${fondoGrecia})` }}
       />
-
       {/* 2. OVERLAY OSCURO */}
       <div
         className="fixed inset-0 z-0"
@@ -475,18 +441,15 @@ export default function Encargados() {
             'radial-gradient(circle at 12% 12%, rgba(5, 25, 36, 0.98) 0%, rgba(5, 25, 36, 0.88) 28%, transparent 58%), linear-gradient(180deg, rgba(6, 20, 28, 0.85) 0%, rgba(6, 20, 28, 0.93) 100%)',
         }}
       />
-
       {/* 3. FRANJA TRICOLOR INSTITUCIONAL */}
       <div className="fixed inset-x-0 top-0 z-50 grid h-1.5 grid-cols-[2.2fr_1fr_.7fr]">
         <span className="bg-[#315F73]" />
         <span className="bg-[#18843B]" />
         <span className="bg-[#D4112E]" />
       </div>
-
       {/* 4. CABECERA FLOTANTE OSCURA CON BOTÓN VOLVER */}
       <header className="relative z-30 w-full border-b border-white/10 bg-[#0B212D]/80 backdrop-blur-xl px-6 lg:px-12 py-3.5 shadow-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
-          
           {/* Lado izquierdo */}
           <div className="flex items-center gap-4">
             <img
@@ -494,9 +457,7 @@ export default function Encargados() {
               alt="Municipalidad de Grecia"
               className="h-11 w-auto object-contain drop-shadow-md"
             />
-            
             <div className="hidden h-9 w-[1px] bg-white/20 sm:block" />
-            
             <div>
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#86efac]">
                 SISTEMA DE CATASTRO
@@ -509,7 +470,6 @@ export default function Encargados() {
               </p>
             </div>
           </div>
-
           {/* Lado derecho */}
           <div className="flex flex-col items-end gap-2.5">
             <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3.5 py-1.5 backdrop-blur-md">
@@ -521,7 +481,6 @@ export default function Encargados() {
                 <p className="text-[10px] text-slate-300">rodriguezderek12@gmail.com</p>
               </div>
             </div>
-
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -530,7 +489,6 @@ export default function Encargados() {
               >
                 Volver al panel
               </button>
-
               <button
                 type="button"
                 onClick={() => {
@@ -547,15 +505,12 @@ export default function Encargados() {
               </button>
             </div>
           </div>
-
         </div>
       </header>
-
       {/* ====================================== */}
       {/* CONTENIDO PRINCIPAL */}
       {/* ====================================== */}
       <main className="relative z-20 mx-auto w-full max-w-7xl px-6 lg:px-12 py-8 flex-1">
-        
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-bold text-white tracking-tight">
@@ -573,7 +528,6 @@ export default function Encargados() {
             + Nuevo encargado
           </button>
         </div>
-
         {/* ====================================== */}
         {/* FILTROS DE BÚSQUEDA */}
         {/* ====================================== */}
@@ -594,7 +548,6 @@ export default function Encargados() {
               Limpiar filtros
             </button>
           </div>
-
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-300">Entidad encargada</label>
@@ -647,7 +600,6 @@ export default function Encargados() {
               />
             </div>
           </div>
-
           <div className="mt-5 border-t border-white/10 pt-4">
             <p className="text-sm text-slate-400">
               Mostrando <span className="font-bold text-white">{encargadosFiltrados.length}</span>
@@ -655,14 +607,12 @@ export default function Encargados() {
             </p>
           </div>
         </div>
-
         {/* CARGANDO */}
         {cargando && (
           <div className="rounded-2xl border border-white/10 bg-[#0d222e]/85 p-8 text-center text-slate-300 backdrop-blur-md">
             Cargando encargados...
           </div>
         )}
-
         {/* ERROR */}
         {!cargando && error && (
           <div className="rounded-2xl border border-red-500/30 bg-red-900/40 p-6 backdrop-blur-md">
@@ -676,7 +626,6 @@ export default function Encargados() {
             </button>
           </div>
         )}
-
         {/* ====================================== */}
         {/* TABLA */}
         {/* ====================================== */}
@@ -694,7 +643,6 @@ export default function Encargados() {
                     <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-300">Acciones</th>
                   </tr>
                 </thead>
-
                 <tbody>
                   {encargadosFiltrados.length === 0 ? (
                     <tr>
@@ -756,7 +704,6 @@ export default function Encargados() {
                 </tbody>
               </table>
             </div>
-
             {/* PAGINACIÓN */}
             {encargadosFiltrados.length > 0 && (
               <div className="flex flex-col gap-4 bg-[#0B212D]/90 border-t border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -766,7 +713,6 @@ export default function Encargados() {
                     <span className="font-bold text-white">{Math.min(indiceFinal, encargadosFiltrados.length)}</span> de{' '}
                     <span className="font-bold text-white">{encargadosFiltrados.length}</span> encargados
                   </p>
-
                   <div className="flex items-center gap-2">
                     <label className="text-sm text-slate-400">Registros por página:</label>
                     <select
@@ -780,7 +726,6 @@ export default function Encargados() {
                     </select>
                   </div>
                 </div>
-
                 <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
                   <button
                     type="button"
@@ -790,7 +735,6 @@ export default function Encargados() {
                   >
                     ← Anterior
                   </button>
-
                   {Array.from({ length: totalPaginas }, (_, indice) => indice + 1).map((pagina) => (
                     <button
                       key={pagina}
@@ -805,7 +749,6 @@ export default function Encargados() {
                       {pagina}
                     </button>
                   ))}
-
                   <button
                     type="button"
                     onClick={() => setPaginaActual((pagina) => Math.min(totalPaginas, pagina + 1))}
@@ -820,14 +763,12 @@ export default function Encargados() {
           </div>
         )}
       </main>
-
       {/* ====================================== */}
       {/* MODAL CREAR / EDITAR - GRANDE Y SIN DOBLE SCROLL */}
       {/* ====================================== */}
       {modalAbierto && (
         <div onClick={cerrarModal} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div onClick={(e) => e.stopPropagation()} className="max-h-[90vh] w-full max-w-4xl flex flex-col rounded-2xl border border-white/10 bg-[#0B212D] shadow-2xl overflow-hidden">
-            
             <div className="flex items-center justify-between border-b border-white/10 px-10 py-7 flex-shrink-0">
               <div>
                 <h2 className="text-3xl font-black text-white tracking-tighter">
@@ -845,14 +786,12 @@ export default function Encargados() {
                 ✕
               </button>
             </div>
-
             <form onSubmit={guardarEncargado} className="p-10 flex-1 overflow-y-auto">
               {errorFormulario && (
                 <div className="mb-10 rounded-xl border border-red-500/30 bg-red-900/40 p-6 text-base font-semibold text-red-300">
                   {errorFormulario}
                 </div>
               )}
-
               <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
                 <div className="md:col-span-2">
                   <label className="mb-3 block text-base font-bold text-slate-300">Entidad encargada</label>
@@ -867,7 +806,6 @@ export default function Encargados() {
                   />
                   <p className="mt-2 text-xs text-slate-400">Máximo 150 caracteres.</p>
                 </div>
-
                 <div>
                   <label className="mb-3 block text-base font-bold text-slate-300">Cédula jurídica</label>
                   <input
@@ -881,7 +819,6 @@ export default function Encargados() {
                   />
                   <p className="mt-2 text-xs text-slate-400">Solo números. Máximo 10 dígitos; los guiones se colocan automáticamente.</p>
                 </div>
-
                 <div>
                   <label className="mb-3 block text-base font-bold text-slate-300">Representante legal</label>
                   <input
@@ -895,7 +832,6 @@ export default function Encargados() {
                   />
                   <p className="mt-2 text-xs text-slate-400">Máximo 150 caracteres.</p>
                 </div>
-
                 <div>
                   <label className="mb-3 block text-base font-bold text-slate-300">Correo electrónico</label>
                   <input
@@ -909,7 +845,6 @@ export default function Encargados() {
                   />
                   <p className="mt-2 text-xs text-slate-400">Máximo 150 caracteres.</p>
                 </div>
-
                 <div>
                   <label className="mb-3 block text-base font-bold text-slate-300">Teléfono</label>
                   <input
@@ -925,7 +860,6 @@ export default function Encargados() {
                   <p className="mt-2 text-xs text-slate-400">Solo números. Máximo 8 dígitos; el guion se coloca automáticamente.</p>
                 </div>
               </div>
-
               <div className="mt-12 flex justify-end gap-5 border-t border-white/10 pt-10 flex-shrink-0">
                 <button
                   type="button"
@@ -947,7 +881,6 @@ export default function Encargados() {
           </div>
         </div>
       )}
-
       {/* ====================================== */}
       {/* MODAL VER INFORMACIÓN - GRANDE Y SIN DOBLE SCROLL */}
       {/* ====================================== */}
@@ -967,7 +900,6 @@ export default function Encargados() {
                 ✕
               </button>
             </div>
-            
             <div className="p-10 flex-1 overflow-y-auto">
               <div className="mb-8 rounded-2xl border border-sky-500/30 bg-sky-900/30 p-8 flex flex-col items-center justify-center">
                 <p className="text-sm font-bold uppercase tracking-wide text-sky-400">Entidad encargada</p>
@@ -1004,7 +936,6 @@ export default function Encargados() {
           </div>
         </div>
       )}
-
       {/* ====================================== */}
       {/* MODAL ELIMINAR - GRANDE Y SIN DOBLE SCROLL */}
       {/* ====================================== */}
@@ -1015,21 +946,18 @@ export default function Encargados() {
               <h2 className="text-3xl font-black text-white tracking-tighter">Eliminar encargado</h2>
               <p className="mt-2 text-base text-slate-400">Esta acción eliminará el registro seleccionado de forma permanente.</p>
             </div>
-            
             <div className="p-10 flex-1 overflow-y-auto">
               <div className="rounded-2xl border border-red-500/30 bg-red-900/30 p-8 flex flex-col items-center justify-center text-center">
                 <p className="text-base text-red-300">¿Está seguro de que desea eliminar este encargado?</p>
                 <p className="mt-6 text-3xl font-black text-white tracking-tight">{encargadoEliminar.entidad_encargada}</p>
                 <p className="mt-3 text-lg text-slate-400">Representante legal: {encargadoEliminar.representante_legal}</p>
               </div>
-
               {errorEliminar && (
                 <div className="mt-8 rounded-xl border border-red-500/30 bg-red-900/50 p-6 text-base font-semibold text-red-300">
                   <p className="font-black text-lg text-red-300">No se puede eliminar el encargado</p>
                   <p className="mt-2 text-base text-red-400">{errorEliminar}</p>
                 </div>
               )}
-
               <div className="mt-12 flex justify-end gap-5 flex-shrink-0 pb-5">
                 <button
                   type="button"
@@ -1052,7 +980,6 @@ export default function Encargados() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

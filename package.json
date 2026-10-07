@@ -10,16 +10,24 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@arcgis/core": "^5.1.26",
+    "@arcgis/map-components": "^5.1.26",
+    "@esri/calcite-components": "^5.1.2",
+    "@react-pdf-kit/viewer": "^2.9.2",
     "@tailwindcss/vite": "^4.3.3",
     "axios": "^1.19.0",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.33.0",
+    "pdfjs-dist": "^6.3.289",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.18.2",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
